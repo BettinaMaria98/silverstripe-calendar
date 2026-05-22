@@ -2,6 +2,7 @@
 
 namespace Dynamic\Calendar\Tests\Controller;
 
+use Dynamic\Calendar\Model\Category;
 use Carbon\Carbon;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Model\EventException;
@@ -93,7 +94,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $response1 = $this->controller->events($request1);
         $this->assertEquals('MISS', $response1->getHeader('X-Calendar-Cache'));
         $json1 = $response1->getBody();
-        $data1 = json_decode($json1, true);
+        $data1 = json_decode((string) $json1, true);
 
         // Make second request (should be cache HIT)
         $request2 = $this->createAjaxRequest();
@@ -110,7 +111,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $response3 = $this->controller->events($request3);
         $this->assertEquals('MISS', $response3->getHeader('X-Calendar-Cache'));
         $json3 = $response3->getBody();
-        $data3 = json_decode($json3, true);
+        $data3 = json_decode((string) $json3, true);
 
         // Verify the modified title appears
         $this->assertNotEquals($json1, $json3, 'Cached data should be different after modification');
@@ -143,7 +144,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $request1 = $this->createAjaxRequest();
         $response1 = $this->controller->events($request1);
         $json1 = $response1->getBody();
-        $data1 = json_decode($json1, true);
+        $data1 = json_decode((string) $json1, true);
         $initialCount = count($data1);
 
         // Make second request to ensure cache is working
@@ -166,7 +167,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $response3 = $this->controller->events($request3);
         $this->assertEquals('MISS', $response3->getHeader('X-Calendar-Cache'));
         $json3 = $response3->getBody();
-        $data3 = json_decode($json3, true);
+        $data3 = json_decode((string) $json3, true);
 
         // Assert new event is present
         $this->assertGreaterThan($initialCount, count($data3), 'New event should be present immediately');
@@ -295,7 +296,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $request1 = $this->createAjaxRequest();
         $response1 = $this->controller->events($request1);
         $json1 = $response1->getBody();
-        $data1 = json_decode($json1, true);
+        $data1 = json_decode((string) $json1, true);
         $initialCount = count($data1);
 
         // Make second request to ensure cache is working
@@ -311,7 +312,7 @@ class CalendarControllerCacheTest extends FunctionalTest
         $response3 = $this->controller->events($request3);
         $this->assertEquals('MISS', $response3->getHeader('X-Calendar-Cache'));
         $json3 = $response3->getBody();
-        $data3 = json_decode($json3, true);
+        $data3 = json_decode((string) $json3, true);
 
         // Assert event count decreased
         $this->assertLessThan($initialCount, count($data3), 'Event count should decrease after deletion');
@@ -332,7 +333,7 @@ class CalendarControllerCacheTest extends FunctionalTest
     {
         // Create a category with unique title to avoid validation errors
         $categoryTitle = 'Test Category ' . uniqid();
-        $category = \Dynamic\Calendar\Model\Category::create([
+        $category = Category::create([
             'Title' => $categoryTitle,
             'URLSegment' => 'test-category-' . uniqid(),
         ]);

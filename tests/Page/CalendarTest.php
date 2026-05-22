@@ -2,13 +2,14 @@
 
 namespace Dynamic\Calendar\Tests\Page;
 
+use Dynamic\Calendar\Controller\CalendarController;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\ORM\DataList;
 use Carbon\Carbon;
 use Dynamic\Calendar\Model\Category;
-use Dynamic\Calendar\Model\EventException;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Dev\SapphireTest;
-use SilverStripe\ORM\ArrayList;
 
 /**
  * Class CalendarTest
@@ -40,7 +41,7 @@ class CalendarTest extends SapphireTest
      */
     public function testGetControllerName()
     {
-        $this->assertEquals('Dynamic\\Calendar\\Controller\\CalendarController', $this->calendar->getControllerName());
+        $this->assertEquals(CalendarController::class, $this->calendar->getControllerName());
     }
 
     /**
@@ -205,7 +206,7 @@ class CalendarTest extends SapphireTest
         $eventPages = $calendar->getLumberjackPagesForGridfield();
 
         // Test that method returns DataList
-        $this->assertInstanceOf('SilverStripe\\ORM\\DataList', $eventPages);
+        $this->assertInstanceOf(DataList::class, $eventPages);
 
         // Test proper filtering by ParentID
         foreach ($eventPages as $eventPage) {

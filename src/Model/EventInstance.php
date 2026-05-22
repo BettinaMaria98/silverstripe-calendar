@@ -2,11 +2,12 @@
 
 namespace Dynamic\Calendar\Model;
 
+use Override;
+use SilverStripe\Model\ModelData;
 use Carbon\Carbon;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Core\Injector\Injectable;
 use SilverStripe\ORM\FieldType\DBField;
-use SilverStripe\View\ViewableData;
 
 /**
  * Virtual Event Instance
@@ -16,24 +17,9 @@ use SilverStripe\View\ViewableData;
  *
  * @package Dynamic\Calendar\Model
  */
-class EventInstance extends ViewableData
+class EventInstance extends ModelData
 {
     use Injectable;
-
-    /**
-     * @var EventPage The original recurring event
-     */
-    protected EventPage $originalEvent;
-
-    /**
-     * @var Carbon The date/time of this specific instance
-     */
-    protected Carbon $instanceDate;
-
-    /**
-     * @var EventException|null Any exceptions/modifications for this instance
-     */
-    protected ?EventException $exception = null;
 
     /**
      * @var array Cached virtual properties
@@ -47,14 +33,8 @@ class EventInstance extends ViewableData
      * @param Carbon $instanceDate
      * @param EventException|null $exception
      */
-    public function __construct(EventPage $originalEvent, Carbon $instanceDate, ?EventException $exception = null)
+    public function __construct(protected EventPage $originalEvent, protected Carbon $instanceDate, protected ?EventException $exception = null)
     {
-        parent::__construct();
-
-        $this->originalEvent = $originalEvent;
-        $this->instanceDate = $instanceDate;
-        $this->exception = $exception;
-
         $this->calculateVirtualProperties();
     }
 
@@ -96,7 +76,8 @@ class EventInstance extends ViewableData
      * @param mixed $property
      * @return mixed
      */
-    public function __get($property)
+    #[Override]
+    public function __get(string $property):mixed
     {
         // Check if there's an exception override for this property
         if ($this->exception && $this->exception->hasOverride($property)) {
@@ -132,7 +113,8 @@ class EventInstance extends ViewableData
      * @param string $property
      * @return bool
      */
-    public function hasField($property)
+    #[Override]
+    public function hasField(string $fieldName): bool
     {
         return isset($this->virtualProperties[$property]) ||
                ($this->exception && $this->exception->hasOverride($property)) ||
@@ -252,7 +234,7 @@ class EventInstance extends ViewableData
     public function getGridFieldTime(): string
     {
         if (!$this->StartTime) {
-            return 'All Day';
+            return _t('Dynamic\Calendar\Model\EventInstance.ALL_DAY', 'All Day');
         }
 
         $time = DBField::create_field('Time', $this->StartTime);
@@ -288,7 +270,7 @@ class EventInstance extends ViewableData
         $link = $this->originalEvent->Link($action);
 
         // Add instance date parameter to distinguish this occurrence
-        $separator = strpos($link, '?') !== false ? '&' : '?';
+        $separator = str_contains($link, '?') ? '&' : '?';
         $link .= $separator . 'instance=' . $this->instanceDate->format('Y-m-d');
 
         return $link;

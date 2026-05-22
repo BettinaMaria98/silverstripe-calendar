@@ -84,7 +84,7 @@ class EventInstanceCache
     {
         // Clear memory cache entries for this event
         foreach (array_keys(self::$memory_cache) as $key) {
-            if (strpos($key, "event_{$event->ID}_") === 0) {
+            if (str_starts_with((string) $key, "event_{$event->ID}_")) {
                 unset(self::$memory_cache[$key]);
             }
         }
@@ -144,7 +144,7 @@ class EventInstanceCache
         return [
             'memory_cache_entries' => count(self::$memory_cache),
             'memory_cache_size' => strlen(serialize(self::$memory_cache)),
-            'cache_backend' => get_class(self::getCache()),
+            'cache_backend' => self::getCache()::class,
         ];
     }
 }

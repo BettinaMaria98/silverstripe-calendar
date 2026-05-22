@@ -2,6 +2,7 @@
 
 namespace Dynamic\Calendar\Controller;
 
+use PageController;
 use Carbon\Carbon;
 use Exception;
 use SilverStripe\Control\HTTPRequest;
@@ -11,7 +12,7 @@ use SilverStripe\Control\HTTPResponse;
  * Class EventPageController
  * @package Dynamic\Calendar\Controller
  */
-class EventPageController extends \PageController
+class EventPageController extends PageController
 {
     /**
      * @var array
@@ -56,7 +57,7 @@ class EventPageController extends \PageController
             }
 
             $response->setBody(json_encode(['occurrences' => $occurrences]));
-        } catch (Exception $e) {
+        } catch (Exception) {
             $response->setStatusCode(500);
             $response->setBody(json_encode(['error' => 'Failed to load occurrences']));
         }
@@ -98,7 +99,7 @@ class EventPageController extends \PageController
             }
 
             $response->setBody(json_encode($data));
-        } catch (Exception $e) {
+        } catch (Exception) {
             $response->setStatusCode(500);
             $response->setBody(json_encode(['error' => 'Failed to load next occurrence']));
         }

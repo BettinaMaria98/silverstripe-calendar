@@ -2,6 +2,11 @@
 
 namespace Dynamic\Calendar\Task;
 
+use Override;
+use Symfony\Component\Console\Input\InputInterface;
+use SilverStripe\PolyExecution\PolyOutput;
+use Symfony\Component\Console\Command\Command;
+use Generator;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Dev\BuildTask;
@@ -16,24 +21,26 @@ class DateTimeConversion extends BuildTask
     /**
      * @var string
      */
-    protected $title = 'Calendar - Legacy Datetime Conversion Task';
+    protected string $title = 'Calendar - Legacy Datetime Conversion Task';
 
     /**
      * @var string
      */
-    private static string $segment = 'calendar-datetime-conversion-task';
+    protected static string $commandName = 'calendar-datetime-conversion-task';
 
     /**
      * @var string
      */
-    protected $description = 'Convert Datetime data to separate Date and Time data';
+    protected static string $description = 'Convert Datetime data to separate Date and Time data';
 
     /**
      * @param HTTPRequest $request
      */
-    public function run($request): void
+    #[Override]
+    protected function execute(InputInterface $input, PolyOutput $output): int
     {
         $this->convertData();
+        return Command::SUCCESS;
     }
 
     /**
@@ -71,9 +78,9 @@ class DateTimeConversion extends BuildTask
     }
 
     /**
-     * @return \Generator
+     * @return Generator
      */
-    protected function yieldEvents(): \Generator
+    protected function yieldEvents(): Generator
     {
         foreach (EventPage::get() as $event) {
             yield $event;

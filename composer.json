@@ -16,15 +16,25 @@
             "homepage": "http://www.dynamicagency.com"
         }
     ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "git@github.com:prij/silverstripe-color-field.git"
+        },
+        {
+            "type": "path",
+            "url": "../../Dev/frontend-multiselectfield"
+        }
+    ],
     "require": {
-        "dft/silverstripe-frontend-multiselectfield": "^1.0",
+        "dft/silverstripe-frontend-multiselectfield": "*",
         "nesbot/carbon": "^3.0",
-        "ryanpotter/silverstripe-color-field": "^1.0",
-        "silverstripe/cms": "^5.0",
-        "silverstripe/lumberjack": "^3.0",
-        "symbiote/silverstripe-gridfieldextensions": "^4.0",
-        "symbiote/silverstripe-queuedjobs": "^5.0",
-        "unclecheese/display-logic": "^3.0"
+        "ryanpotter/silverstripe-color-field": "dev-ss6-compatibility",
+        "silverstripe/cms": "^6.0",
+        "silverstripe/lumberjack": "^4.0",
+        "symbiote/silverstripe-gridfieldextensions": "^5.0",
+        "symbiote/silverstripe-queuedjobs": "^6.0",
+        "unclecheese/display-logic": "^4.0"
     },
     "require-dev": {
         "cambis/silverstan": "^2.1",

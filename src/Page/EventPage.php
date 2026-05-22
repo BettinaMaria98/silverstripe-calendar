@@ -2,36 +2,41 @@
 
 namespace Dynamic\Calendar\Page;
 
+use Page;
+use Override;
+use DateTime;
+use DateInterval;
+use Exception;
+use InvalidArgumentException;
+use SilverStripe\Core\Validation\ValidationResult;
+use SilverStripe\Model\List\ArrayList;
+use Dynamic\Calendar\Model\EventInstanceCache;
+use SilverStripe\ORM\DataList;
+use Generator;
 use Carbon\Carbon;
 use Dynamic\Calendar\Controller\EventPageController;
 use Dynamic\Calendar\Extension\CalendarCacheInvalidation;
 use Dynamic\Calendar\Form\CalendarTimeField;
 use Dynamic\Calendar\Model\Category;
 use Dynamic\Calendar\Model\EventException;
-use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Traits\CarbonRecursion;
 use SilverStripe\Forms\DateField;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldGroup;
 use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\GridField\GridField;
-use SilverStripe\Forms\GridField\GridFieldConfig_RelationEditor;
-use SilverStripe\Forms\GridField\GridFieldPaginator;
+use SilverStripe\Forms\GridField\GridFieldConfig_RecordEditor;
 use SilverStripe\Forms\LiteralField;
 use SilverStripe\Forms\NumericField;
 use SilverStripe\Forms\TreeMultiselectField;
 use SilverStripe\AssetAdmin\Forms\UploadField;
 use SilverStripe\Assets\Image;
-use SilverStripe\Lumberjack\Model\Lumberjack;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\FieldType\DBBoolean;
 use SilverStripe\ORM\FieldType\DBDate;
 use SilverStripe\ORM\FieldType\DBField;
 use SilverStripe\ORM\FieldType\DBTime;
-use SilverStripe\ORM\HasManyList;
 use SilverStripe\ORM\ManyManyList;
-use SilverStripe\ORM\ValidationResult;
-use SilverStripe\Versioned\Versioned;
 
 /**
  * Class EventPage
@@ -48,16 +53,15 @@ use SilverStripe\Versioned\Versioned;
  * @property DBDate $RecursionEndDate
  * @method ManyManyList Categories()
  */
-class EventPage extends \Page
+class EventPage extends Page
 {
     use CarbonRecursion;
     use CalendarCacheInvalidation;
 
     /**
      * Recurring pattern options for event frequency
-     * @var array
      */
-    private const CARBON_PATTERNS = [
+    private const array CARBON_PATTERNS = [
         'DAILY' => 'Day(s)',
         'WEEKLY' => 'Week(s)',
         'MONTHLY' => 'Month(s)',
@@ -87,7 +91,7 @@ class EventPage extends \Page
     /**
      * @var string
      */
-    private static string $icon_class = 'font-icon-p-event';
+    private static string $cms_icon_class = 'font-icon-p-event';
 
     /**
      *
@@ -131,9 +135,7 @@ class EventPage extends \Page
     /**
      * @var array
      */
-    private static array $extensions = [
-        Lumberjack::class,
-    ];
+    private static array $extensions = [];
 
     /**
      * @var array
@@ -214,7 +216,6 @@ class EventPage extends \Page
         'Title' => 'PartialMatchFilter',
         'Content' => 'PartialMatchFilter',
         'StartDate' => 'GreaterThanOrEqualFilter',
-        'Categories.ID' => 'ExactMatchFilter',
         'AllDay' => 'ExactMatchFilter',
         'Recursion' => 'ExactMatchFilter',
     ];
@@ -343,39 +344,47 @@ class EventPage extends \Page
         return $this->categoriesListCache;
     }
 
-    /**
-     * @return string
-     */
-    public function getLumberjackTitle()
-    {
-        return 'Recurring Events';
-    }
-
-    /**
-     * @return \SilverStripe\ORM\DataList
-     */
-    public function getLumberjackPagesForGridfield()
-    {
-        // With Carbon system, we don't have physical RecursiveEvent records
-        // Return empty DataList since we use virtual instances
-        return EventPage::get()->filter('ID', 0); // Returns empty DataList
-    }
+    private static array $scaffold_cms_fields_settings = [
+        'ignoreFields' => [
+            'StartDate',
+            'StartTime',
+            'EndDate',
+            'EndTime',
+            'AllDay',
+            'Categories',
+            'Interval',
+            'RecursionEndDate',
+            'StartDatetime',
+            'EndDatetime',
+            'EventType'
+        ],
+        'ignoreRelations' => [
+            'Categories',
+            'EventExceptions'
+        ]
+    ];
 
     /**
      * @return FieldList
      */
+    #[Override]
     public function getCMSFields()
     {
-        $this->beforeUpdateCMSFields(function (FieldList $fields) {
+        $this->beforeUpdateCMSFields(function (FieldList $fields): void {
             // Add ParentID dropdown for Calendar selection
             $calendars = Calendar::get();
             if ($calendars->exists()) {
                 $parentField = DropdownField::create(
                     'ParentID',
-                    'Calendar',
+                    _t('Dynamic\Calendar\Page\EventPage.PARENT_CALENDAR', 'Calendar'),
                     $calendars->map('ID', 'Title')
-                )->setEmptyString('Select a Calendar...')
-                 ->setDescription('Choose which Calendar this event belongs to');
+                )->setEmptyString(_t('Dynamic\Calendar\Page\EventPage.SELECT_CALENDAR', 'Select a Calendar...'))
+                 ->setDescription(_t('Dynamic\Calendar\Page\EventPage.CALENDAR_DESCRIPTION', 'Choose which Calendar this event belongs to'));
+
+                // If only one calendar exists use this
+                if($calendars->count() === 1 && !$this->ParentID) {
+                    $parentField->setValue($calendars->first()->ID);
+                }
 
                 // Make the field required
                 $parentField->setAttribute('required', true);
@@ -392,7 +401,7 @@ class EventPage extends \Page
                     LiteralField::create(
                         'NoCalendarWarning',
                         '<p class="alert alert-warning">' .
-                        'No Calendar pages exist. Please create a Calendar page first before adding events.' .
+                        _t('Dynamic\Calendar\Page\EventPage.NO_CALENDAR_WARNING', 'No Calendar pages exist. Please create a Calendar page first before adding events.') .
                         '</p>'
                     ),
                     'Content'
@@ -403,34 +412,38 @@ class EventPage extends \Page
             $fields->addFieldToTab(
                 'Root.Main',
                 UploadField::create('FeaturedImage')
-                    ->setTitle('Featured Image')
-                    ->setDescription('Main image for this event (recommended: 1200x630px)')
+                    ->setTitle(_t('Dynamic\Calendar\Page\EventPage.FEATURED_IMAGE', 'Featured Image'))
+                    ->setDescription(_t('Dynamic\Calendar\Page\EventPage.FEATURED_IMAGE_DESC', 'Main image for this event (recommended: 1200x630px)'))
                     ->setFolderName('Uploads/Events')
                     ->setAllowedMaxFileNumber(1)
                     ->setAllowedFileCategories('image'),
                 'Content'
             );
 
+            $fields->findOrMakeTab('Root.EventSettings', _t('Dynamic\Calendar\Page\EventPage.TAB_EVENTSETTINGS', 'Event'));
             $fields->addFieldsToTab(
                 'Root.EventSettings',
                 [
                     FieldGroup::create(
                         $start = DateField::create('StartDate')
-                            ->setTitle('Start Date'),
+                            ->setTitle(_t('Dynamic\Calendar\Page\EventPage.START_DATE', 'Start Date')),
                         $startTime = CalendarTimeField::create('StartTime')
-                            ->setTitle('Start Time')
-                    )->setTitle('From'),
+                            ->setTitle(_t('Dynamic\Calendar\Page\EventPage.START_TIME', 'Start Time'))
+                    )->setTitle(_t('Dynamic\Calendar\Page\EventPage.TIME_GROUP_FROM', 'From')),
                     FieldGroup::create(
                         $end = DateField::create('EndDate')
-                            ->setTitle('End Date'),
+                            ->setTitle(_t('Dynamic\Calendar\Page\EventPage.END_DATE', 'End Date')),
                         $endTime = CalendarTimeField::create('EndTime')
-                            ->setTitle('End Time')
-                    )->setTitle('To'),
+                            ->setTitle(_t('Dynamic\Calendar\Page\EventPage.END_TIME', 'End Time'))
+                    )->setTitle(_t('Dynamic\Calendar\Page\EventPage.TIME_GROUP_TO', 'To')),
                     $allDay = DropdownField::create('AllDay')
-                        ->setTitle('All Day')
-                        ->setSource([false => 'No', true => 'Yes']),
+                        ->setTitle(_t('Dynamic\Calendar\Page\EventPage.ALL_DAY_FIELD', 'All Day'))
+                        ->setSource([
+                            false => _t('Dynamic\Calendar\Page\EventPage.NO', 'No'),
+                            true => _t('Dynamic\Calendar\Page\EventPage.YES', 'Yes'),
+                        ]),
                     $categories = TreeMultiselectField::create('Categories')
-                        ->setTitle('Categories')
+                        ->setTitle(_t('Dynamic\Calendar\Page\EventPage.CATEGORIES', 'Categories'))
                         ->setSourceObject(Category::class),
                 ]
             );
@@ -439,6 +452,7 @@ class EventPage extends \Page
             $endTime->hideIf('AllDay')->isEqualTo(true)->end();
 
             if ($this->config()->get('recursion') && !$this->isCopy()) {
+                $fields->findOrMakeTab('Root.Recursion', _t('Dynamic\Calendar\Page\EventPage.TAB_RECURSION', 'Recurrence'));
                 $fields->addFieldsToTab(
                     'Root.Recursion',
                     [
@@ -448,8 +462,8 @@ class EventPage extends \Page
                             $recursion = DropdownField::create('Recursion')
                                 ->setSource($this->getPatternSource()),
                             $recursionEndDate = DateField::create('RecursionEndDate')
-                                ->setTitle('Ending On')
-                        )->setTitle('Repeat every'),
+                                ->setTitle(_t('Dynamic\Calendar\Page\EventPage.RECURSION_END_DATE', 'Ending On'))
+                        )->setTitle(_t('Dynamic\Calendar\Page\EventPage.REPEAT_EVERY_LABEL', 'Repeat every')),
                     ]
                 );
             }
@@ -457,36 +471,24 @@ class EventPage extends \Page
 
         $fields = parent::getCMSFields();
 
-        if (($children = $fields->dataFieldByName('ChildPages')) && $children instanceof GridField) {
-            if (
-                ($component = $children->getConfig()->getComponentByType(GridFieldPaginator::class))
-                && $component instanceof GridFieldPaginator
-            ) {
-                // Set items per page for paginator
-                $component->setItemsPerPage(7);
-            }
-        }
+        $fields->removeByName('ChildPages');
 
         if ($this->isCopy()) {
-            $fields->removeByName('ChildPages');
             $fields = $fields->makeReadonly();
-        }
-
-        if (!$this->config()->get('recursion')) {
-            $fields->removeByName('ChildPages');
         }
 
         // Add EventExceptions GridField for recurring event exceptions
         if ($this->ID && $this->eventRecurs()) {
-            $exceptionsConfig = GridFieldConfig_RelationEditor::create();
+            $exceptionsConfig = GridFieldConfig_RecordEditor::create();
 
-            $exceptionsGrid = \SilverStripe\Forms\GridField\GridField::create(
+            $exceptionsGrid = GridField::create(
                 'EventExceptions',
-                'Event Exceptions',
+                _t('Dynamic\Calendar\Page\EventPage.EVENT_EXCEPTIONS', 'Event Exceptions'),
                 $this->EventExceptions(),
                 $exceptionsConfig
             );
 
+            $fields->findOrMakeTab('Root.Exceptions', _t('Dynamic\Calendar\Page\EventPage.TAB_EXCEPTIONS', 'Exceptions'));
             $fields->addFieldToTab('Root.Exceptions', $exceptionsGrid);
         }
 
@@ -496,6 +498,7 @@ class EventPage extends \Page
     /**
      *
      */
+    #[Override]
     public function onBeforeWrite()
     {
         parent::onBeforeWrite();
@@ -505,20 +508,20 @@ class EventPage extends \Page
         // Add default 1-hour duration if start time is set but no end time
         if ($this->StartTime && !$this->EndTime) {
             try {
-                $startTimeObj = \SilverStripe\ORM\FieldType\DBTime::create_field(
-                    'SilverStripe\ORM\FieldType\DBTime',
+                $startTimeObj = DBTime::create_field(
+                    DBTime::class,
                     $this->StartTime
                 );
-                $startTimeDT = $startTimeObj->getValue() ? new \DateTime($startTimeObj->getValue()) : null;
+                $startTimeDT = $startTimeObj->getValue() ? new DateTime($startTimeObj->getValue()) : null;
                 if ($startTimeDT) {
-                    $startTimeDT->add(new \DateInterval('PT1H')); // Add 1 hour
+                    $startTimeDT->add(new DateInterval('PT1H')); // Add 1 hour
                     $this->EndTime = $startTimeDT->format('H:i:s');
                 } else {
                     error_log(
                         "EventPage: Failed to parse StartTime '{$this->StartTime}' as DBTime in onBeforeWrite."
                     );
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 error_log(
                     "EventPage: Exception parsing StartTime '{$this->StartTime}' in onBeforeWrite: " .
                     $e->getMessage()
@@ -535,6 +538,7 @@ class EventPage extends \Page
     /**
      *
      */
+    #[Override]
     public function onAfterPublish()
     {
         parent::onAfterPublish();
@@ -545,6 +549,7 @@ class EventPage extends \Page
     /**
      * @return string
      */
+    #[Override]
     public function getControllerName()
     {
         return EventPageController::class;
@@ -600,6 +605,7 @@ class EventPage extends \Page
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canEdit($member = null)
     {
         if ($this->isCopy()) {
@@ -613,6 +619,7 @@ class EventPage extends \Page
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canPublish($member = null)
     {
         if ($this->isCopy()) {
@@ -661,14 +668,20 @@ class EventPage extends \Page
      * Get the pattern source for recurring events dropdown
      * @return array
      */
-    public function getPatternSource()
+    public function getPatternSource(): array
     {
-        return array_merge(['NONE' => 'Does not repeat'], self::CARBON_PATTERNS);
+        return [
+            'NONE'    => _t('Dynamic\Calendar\Page\EventPage.RECURSION_NONE', 'Does not repeat'),
+            'DAILY'   => _t('Dynamic\Calendar\Page\EventPage.PATTERN_DAYS', 'Day(s)'),
+            'WEEKLY'  => _t('Dynamic\Calendar\Page\EventPage.PATTERN_WEEKS', 'Week(s)'),
+            'MONTHLY' => _t('Dynamic\Calendar\Page\EventPage.PATTERN_MONTHS', 'Month(s)'),
+            'YEARLY'  => _t('Dynamic\Calendar\Page\EventPage.PATTERN_YEARS', 'Year(s)'),
+        ];
     }
 
     /**
      * @param $list
-     * @return \Generator
+     * @return Generator
      */
     private function yieldSingle($list)
     {
@@ -697,7 +710,7 @@ class EventPage extends \Page
         } elseif ($action === 'MODIFIED') {
             return EventException::createModification($this, $instanceDate, $overrides, $reason);
         } else {
-            throw new \InvalidArgumentException("Invalid action: $action. Must be 'MODIFIED' or 'DELETED'");
+            throw new InvalidArgumentException("Invalid action: $action. Must be 'MODIFIED' or 'DELETED'");
         }
     }
 
@@ -706,13 +719,13 @@ class EventPage extends \Page
      *
      * For the Carbon system, this returns an ArrayList of virtual instances
      *
-     * @return \SilverStripe\ORM\ArrayList
+     * @return ArrayList
      */
     public function allChildren()
     {
         // Use virtual instances with Carbon system
         if (!$this->eventRecurs()) {
-            return \SilverStripe\ORM\ArrayList::create();
+            return ArrayList::create();
         }
 
         // Get occurrences within a reasonable timeframe for testing
@@ -720,7 +733,7 @@ class EventPage extends \Page
             Carbon::parse($this->StartDate)->addMonth();
         $occurrences = $this->getOccurrences($this->StartDate, $endDate);
 
-        $children = \SilverStripe\ORM\ArrayList::create();
+        $children = ArrayList::create();
         $originalStartDate = $this->StartDate;
 
         foreach ($occurrences as $occurrence) {
@@ -741,31 +754,33 @@ class EventPage extends \Page
     /**
      * Validate that a parent Calendar is selected
      */
-    public function validate()
+    #[Override]
+    public function validate(): ValidationResult
     {
         $result = parent::validate();
 
         // Only validate ParentID if we don't have a valid parent already
         if (!$this->ParentID || $this->ParentID == 0) {
-            $result->addError('Please select a Calendar for this event.');
+            $result->addError(_t('Dynamic\Calendar\Page\EventPage.CALENDAR_REQUIRED', 'Please select a Calendar for this event.'));
         } else {
             // Ensure the selected parent is actually a Calendar
             $parent = Calendar::get()->byID($this->ParentID);
             if (!$parent) {
-                $result->addError('Selected parent must be a Calendar page.');
+                $result->addError(_t('Dynamic\Calendar\Page\EventPage.INVALID_PARENT', 'Selected parent must be a Calendar page.'));
             }
         }
 
         return $result;
     }
 
+    #[Override]
     public function onAfterWrite(): void
     {
         parent::onAfterWrite();
 
         // Clear caches if recursion-related fields changed
         if ($this->recursionChanged()) {
-            \Dynamic\Calendar\Model\EventInstanceCache::clearEventCache($this);
+            EventInstanceCache::clearEventCache($this);
         }
 
         // Clear JSON cache when event is modified
@@ -775,11 +790,12 @@ class EventPage extends \Page
     /**
      * Clear caches when event is deleted
      */
+    #[Override]
     public function onAfterDelete(): void
     {
         parent::onAfterDelete();
 
-        \Dynamic\Calendar\Model\EventInstanceCache::clearEventCache($this);
+        EventInstanceCache::clearEventCache($this);
 
         // Clear JSON cache when event is deleted
         $this->clearCalendarJSONCache();

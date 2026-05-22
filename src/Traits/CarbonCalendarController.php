@@ -2,10 +2,10 @@
 
 namespace Dynamic\Calendar\Traits;
 
+use SilverStripe\Model\List\ArrayList;
 use Carbon\Carbon;
 use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\EventPage;
-use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 
 /**
@@ -30,7 +30,7 @@ trait CarbonCalendarController
      */
     protected function setEventsWithCarbon(): self
     {
-        $events = new ArrayList();
+        $events = ArrayList::create();
 
         // Get date range for filtering
         $startDate = $this->getStartDate();
@@ -57,7 +57,7 @@ trait CarbonCalendarController
         }
 
         // Sort events by start date
-        $events = $events->sort('StartDate');
+        $events = $events->sort(['StartDate' => 'ASC']);
 
         // Apply additional filters
         $events = $this->applyRequestFilters($events);
@@ -134,7 +134,7 @@ trait CarbonCalendarController
 
         // Filter by title
         if ($title = $request->getVar('Title')) {
-            $events = $events->filter('Title:PartialMatch', $title);
+            $events = $events->filter(['Title:PartialMatch' => $title]);
         }
 
         // Filter by categories
@@ -143,7 +143,7 @@ trait CarbonCalendarController
                 $categoryIDs = [$categoryIDs];
             }
 
-            $filteredEvents = new ArrayList();
+            $filteredEvents = ArrayList::create();
             foreach ($events as $event) {
                 if ($this->eventHasCategories($event, $categoryIDs)) {
                     $filteredEvents->push($event);
@@ -155,7 +155,7 @@ trait CarbonCalendarController
         // Filter by date range (additional to the main range)
         if ($specificDate = $request->getVar('Date')) {
             $targetDate = Carbon::parse($specificDate);
-            $filteredEvents = new ArrayList();
+            $filteredEvents = ArrayList::create();
 
             foreach ($events as $event) {
                 if ($this->eventOccursOnDate($event, $targetDate)) {
@@ -217,7 +217,7 @@ trait CarbonCalendarController
         $monthStart = Carbon::parse($month)->startOfMonth();
         $monthEnd = Carbon::parse($month)->endOfMonth();
 
-        $events = new ArrayList();
+        $events = ArrayList::create();
         $allEvents = $this->getBaseEventQuery();
 
         foreach ($allEvents as $event) {
@@ -235,7 +235,7 @@ trait CarbonCalendarController
             }
         }
 
-        return $events->sort('StartDate');
+        return $events->sort(['StartDate' => 'ASC']);
     }
 
     /**
@@ -249,7 +249,7 @@ trait CarbonCalendarController
         $weekStart = Carbon::parse($week)->startOfWeek();
         $weekEnd = Carbon::parse($week)->endOfWeek();
 
-        $events = new ArrayList();
+        $events = ArrayList::create();
         $allEvents = $this->getBaseEventQuery();
 
         foreach ($allEvents as $event) {
@@ -267,7 +267,7 @@ trait CarbonCalendarController
             }
         }
 
-        return $events->sort('StartDate');
+        return $events->sort(['StartDate' => 'ASC']);
     }
 
     /**
@@ -278,7 +278,7 @@ trait CarbonCalendarController
     public function getTodaysEvents(): ArrayList
     {
         $today = Carbon::today();
-        $events = new ArrayList();
+        $events = ArrayList::create();
         $allEvents = $this->getBaseEventQuery();
 
         foreach ($allEvents as $event) {
@@ -298,7 +298,7 @@ trait CarbonCalendarController
             }
         }
 
-        return $events->sort('StartDate');
+        return $events->sort(['StartDate' => 'ASC']);
     }
 
     /**
@@ -312,7 +312,7 @@ trait CarbonCalendarController
         $start = Carbon::now();
         $end = Carbon::now()->addDays($days);
 
-        $events = new ArrayList();
+        $events = ArrayList::create();
         $allEvents = $this->getBaseEventQuery();
 
         foreach ($allEvents as $event) {
@@ -330,7 +330,7 @@ trait CarbonCalendarController
             }
         }
 
-        return $events->sort('StartDate');
+        return $events->sort(['StartDate' => 'ASC']);
     }
 
     /**

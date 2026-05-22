@@ -2,12 +2,15 @@
 
 namespace Dynamic\Calendar\Form;
 
+use LogicException;
+use SilverStripe\Core\Injector\Injector;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Dynamic\Calendar\Model\Category;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\Controller;
 use SilverStripe\Control\HTTPRequest;
-use SilverStripe\Forms\CheckboxSetField;
 use SilverStripe\Forms\DateField;
 use SilverStripe\Forms\DropdownField;
 use SilverStripe\Forms\FieldList;
@@ -15,10 +18,8 @@ use SilverStripe\Forms\Form;
 use SilverStripe\Forms\FormAction;
 use SilverStripe\Forms\HiddenField;
 use SilverStripe\Forms\LiteralField;
-use SilverStripe\Forms\OptionsetField;
 use SilverStripe\Forms\TextField;
 use SilverStripe\View\Requirements;
-use Exception;
 
 /**
  * Calendar Event Filtering Form
@@ -158,9 +159,9 @@ class CalendarFilterForm extends Form
 
         // Row 1: Horizontal layout with main filters
         // Search field - takes up more space
-        $fields->push(TextField::create('search', 'Search')
+        $fields->push(TextField::create('search', _t('Dynamic\Calendar\Form\CalendarFilterForm.SEARCH_FIELD', 'Search'))
             ->setValue($request->getVar('search'))
-            ->setAttribute('placeholder', 'Search event titles and descriptions...')
+            ->setAttribute('placeholder', _t('Dynamic\Calendar\Form\CalendarFilterForm.SEARCH_PLACEHOLDER', 'Search event titles and descriptions...'))
             ->setAttribute('class', 'form-control')
             ->addExtraClass('col-md-4 mb-3'));
 
@@ -168,7 +169,7 @@ class CalendarFilterForm extends Form
         if ($this->calendar->ShowCategoryFilter) {
             $availableCategories = $this->getAvailableCategories();
             if ($availableCategories->count()) {
-                $fields->push(DropdownField::create('categories', 'Categories')
+                $fields->push(DropdownField::create('categories', _t('Dynamic\Calendar\Form\CalendarFilterForm.CATEGORIES_FIELD', 'Categories'))
                     ->setSource($availableCategories->map('ID', 'Title')->toArray())
                     ->setValue($request->getVar('categories'))
                     ->setAttribute('multiple', 'multiple')
@@ -177,18 +178,18 @@ class CalendarFilterForm extends Form
         }
 
         // Date range - compact side by side with better labels
-        $fields->push(DateField::create('from', 'From Date')
+        $fields->push(DateField::create('from', _t('Dynamic\Calendar\Form\CalendarFilterForm.FROM_DATE_FIELD', 'From Date'))
             ->setValue($request->getVar('from'))
             ->setAttribute('class', 'form-control')
-            ->setAttribute('placeholder', 'Select start date')
-            ->setDescription('Show events from this date')
+            ->setAttribute('placeholder', _t('Dynamic\Calendar\Form\CalendarFilterForm.FROM_DATE_PLACEHOLDER', 'Select start date'))
+            ->setDescription(_t('Dynamic\Calendar\Form\CalendarFilterForm.FROM_DATE_DESC', 'Show events from this date'))
             ->addExtraClass('col-md-2 mb-3'));
 
-        $fields->push(DateField::create('to', 'To Date')
+        $fields->push(DateField::create('to', _t('Dynamic\Calendar\Form\CalendarFilterForm.TO_DATE_FIELD', 'To Date'))
             ->setValue($request->getVar('to'))
             ->setAttribute('class', 'form-control')
-            ->setAttribute('placeholder', 'Select end date')
-            ->setDescription('Show events until this date')
+            ->setAttribute('placeholder', _t('Dynamic\Calendar\Form\CalendarFilterForm.TO_DATE_PLACEHOLDER', 'Select end date'))
+            ->setDescription(_t('Dynamic\Calendar\Form\CalendarFilterForm.TO_DATE_DESC', 'Show events until this date'))
             ->addExtraClass('col-md-2 mb-3'));
 
         // Advanced filters - with simple toggle
@@ -204,11 +205,11 @@ class CalendarFilterForm extends Form
             if ($showAdvanced) {
                 // Event type filter
                 if ($this->calendar->ShowEventTypeFilter) {
-                    $fields->push(DropdownField::create('eventType', 'Type')
+                    $fields->push(DropdownField::create('eventType', _t('Dynamic\Calendar\Form\CalendarFilterForm.EVENT_TYPE_FIELD', 'Type'))
                         ->setSource([
-                            '' => 'All Events',
-                            'one-time' => 'One-Time Events',
-                            'recurring' => 'Recurring Events'
+                            ''          => _t('Dynamic\Calendar\Form\CalendarFilterForm.TYPE_ALL', 'All Events'),
+                            'one-time'  => _t('Dynamic\Calendar\Form\CalendarFilterForm.TYPE_ONE_TIME', 'One-Time Events'),
+                            'recurring' => _t('Dynamic\Calendar\Form\CalendarFilterForm.TYPE_RECURRING', 'Recurring Events'),
                         ])
                         ->setValue($request->getVar('eventType'))
                         ->setAttribute('class', 'form-control')
@@ -217,11 +218,11 @@ class CalendarFilterForm extends Form
 
                 // All-day filter
                 if ($this->calendar->ShowAllDayFilter) {
-                    $fields->push(DropdownField::create('allDay', 'Duration')
+                    $fields->push(DropdownField::create('allDay', _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_FIELD', 'Duration'))
                         ->setSource([
-                            '' => 'All Events',
-                            '1' => 'All-Day Events',
-                            '0' => 'Timed Events'
+                            ''  => _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_ALL', 'All Events'),
+                            '1' => _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_ALL_DAY', 'All-Day Events'),
+                            '0' => _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_TIMED', 'Timed Events'),
                         ])
                         ->setValue($request->getVar('allDay'))
                         ->setAttribute('class', 'form-control')
@@ -243,10 +244,10 @@ class CalendarFilterForm extends Form
         $actions = FieldList::create();
 
         // Apply Filters button
-        $actions->push(FormAction::create('doFilter', 'Apply Filters')
+        $actions->push(FormAction::create('doFilter', _t('Dynamic\Calendar\Form\CalendarFilterForm.APPLY_FILTERS_BUTTON', 'Apply Filters'))
             ->addExtraClass('btn btn-primary btn-lg px-4 me-2')
             ->setUseButtonTag(true)
-            ->setAttribute('title', 'Apply the selected filters to view matching events'));
+            ->setAttribute('title', _t('Dynamic\Calendar\Form\CalendarFilterForm.APPLY_FILTERS_TITLE', 'Apply the selected filters to view matching events')));
 
         // Clear Filters button will be added via JavaScript to avoid timing issues
 
@@ -272,10 +273,10 @@ class CalendarFilterForm extends Form
         $categoryIDs = array_unique(array_filter($categoryIDs));
 
         if (empty($categoryIDs)) {
-            return Category::get()->filter('ID', 0); // Return empty DataList
+            return Category::get()->filter(['ID' => 0]); // Return empty DataList
         }
 
-        return Category::get()->byIDs($categoryIDs)->sort('Title ASC');
+        return Category::get()->byIDs($categoryIDs)->sort(['Title' => 'ASC']);
     }
 
     /**
@@ -351,8 +352,8 @@ class CalendarFilterForm extends Form
             }
 
             // Fallback: try to get request from current controller
-            if (class_exists('SilverStripe\Control\Controller')) {
-                $currentController = \SilverStripe\Control\Controller::curr();
+            if (class_exists(Controller::class)) {
+                $currentController = Controller::curr();
                 if ($currentController && method_exists($currentController, 'getRequest')) {
                     $request = $currentController->getRequest();
                     if ($request && $request instanceof HTTPRequest) {
@@ -360,16 +361,16 @@ class CalendarFilterForm extends Form
                     }
                 }
             }
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             // Log the error for debugging but don't break the page
-            if (class_exists('SilverStripe\Core\Injector\Injector')) {
-                $logger = \SilverStripe\Core\Injector\Injector::inst()->get('Psr\Log\LoggerInterface');
+            if (class_exists(Injector::class)) {
+                $logger = Injector::inst()->get(LoggerInterface::class);
                 $logger->warning('CalendarFilterForm: Logic error while checking active filters - ' . $e->getMessage());
             }
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             // Log the error for debugging but don't break the page
-            if (class_exists('SilverStripe\Core\Injector\Injector')) {
-                $logger = \SilverStripe\Core\Injector\Injector::inst()->get('Psr\Log\LoggerInterface');
+            if (class_exists(Injector::class)) {
+                $logger = Injector::inst()->get(LoggerInterface::class);
                 $logger->warning(
                     'CalendarFilterForm: Runtime error while checking active filters - ' . $e->getMessage()
                 );
@@ -438,8 +439,8 @@ class CalendarFilterForm extends Form
             }
 
             // Fallback: try to get request from current controller
-            if (class_exists('SilverStripe\Control\Controller')) {
-                $currentController = \SilverStripe\Control\Controller::curr();
+            if (class_exists(Controller::class)) {
+                $currentController = Controller::curr();
                 if ($currentController && method_exists($currentController, 'getRequest')) {
                     $request = $currentController->getRequest();
                     if ($request && $request instanceof HTTPRequest) {
@@ -447,16 +448,16 @@ class CalendarFilterForm extends Form
                     }
                 }
             }
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             // Log the error for debugging but don't break the page
-            if (class_exists('SilverStripe\Core\Injector\Injector')) {
-                $logger = \SilverStripe\Core\Injector\Injector::inst()->get('Psr\Log\LoggerInterface');
+            if (class_exists(Injector::class)) {
+                $logger = Injector::inst()->get(LoggerInterface::class);
                 $logger->warning('CalendarFilterForm: Logic error while checking active filters - ' . $e->getMessage());
             }
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             // Log the error for debugging but don't break the page
-            if (class_exists('SilverStripe\Core\Injector\Injector')) {
-                $logger = \SilverStripe\Core\Injector\Injector::inst()->get('Psr\Log\LoggerInterface');
+            if (class_exists(Injector::class)) {
+                $logger = Injector::inst()->get(LoggerInterface::class);
                 $logger->warning(
                     'CalendarFilterForm: Runtime error while checking active filters - ' . $e->getMessage()
                 );

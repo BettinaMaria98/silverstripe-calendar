@@ -14,25 +14,25 @@ function validateICS($content)
     $warnings = [];
 
     // Required components
-    if (!preg_match('/BEGIN:VCALENDAR/', $content)) {
+    if (!preg_match('/BEGIN:VCALENDAR/', (string) $content)) {
         $issues[] = "Missing required BEGIN:VCALENDAR";
     }
 
-    if (!preg_match('/END:VCALENDAR/', $content)) {
+    if (!preg_match('/END:VCALENDAR/', (string) $content)) {
         $issues[] = "Missing required END:VCALENDAR";
     }
 
-    if (!preg_match('/VERSION:2\.0/', $content)) {
+    if (!preg_match('/VERSION:2\.0/', (string) $content)) {
         $issues[] = "Missing required VERSION:2.0";
     }
 
-    if (!preg_match('/PRODID:/', $content)) {
+    if (!preg_match('/PRODID:/', (string) $content)) {
         $issues[] = "Missing required PRODID";
     }
 
     // Check for events
-    $eventCount = preg_match_all('/BEGIN:VEVENT/', $content);
-    $eventEndCount = preg_match_all('/END:VEVENT/', $content);
+    $eventCount = preg_match_all('/BEGIN:VEVENT/', (string) $content);
+    $eventEndCount = preg_match_all('/END:VEVENT/', (string) $content);
 
     if ($eventCount !== $eventEndCount) {
         $issues[] = "Mismatched BEGIN:VEVENT and END:VEVENT count";
@@ -43,7 +43,7 @@ function validateICS($content)
     echo "Events found: {$eventCount}\n";
 
     // Validate individual events
-    preg_match_all('/BEGIN:VEVENT.*?END:VEVENT/s', $content, $events);
+    preg_match_all('/BEGIN:VEVENT.*?END:VEVENT/s', (string) $content, $events);
 
     foreach ($events[0] as $i => $event) {
         $eventNum = $i + 1;
@@ -101,12 +101,12 @@ function validateICS($content)
     }
 
     // Check for common issues
-    if (preg_match('/[^\r\n][\r\n]/', $content)) {
+    if (preg_match('/[^\r\n][\r\n]/', (string) $content)) {
         $warnings[] = "Lines should end with CRLF (\\r\\n)";
     }
 
     // Line length check (RFC recommends max 75 characters)
-    $lines = explode("\n", $content);
+    $lines = explode("\n", (string) $content);
     $longLines = 0;
     foreach ($lines as $line) {
         if (strlen(rtrim($line, "\r")) > 75) {
@@ -195,7 +195,7 @@ if (empty($content)) {
     exit(1);
 }
 
-echo "📊 Content size: " . strlen($content) . " bytes\n";
+echo "📊 Content size: " . strlen((string) $content) . " bytes\n";
 echo "\n";
 
 $isValid = validateICS($content);

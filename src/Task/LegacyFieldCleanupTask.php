@@ -2,6 +2,12 @@
 
 namespace Dynamic\Calendar\Task;
 
+use Override;
+use Symfony\Component\Console\Input\InputInterface;
+use SilverStripe\PolyExecution\PolyOutput;
+use Symfony\Component\Console\Command\Command;
+use DateTime;
+use Exception;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Dev\BuildTask;
 use SilverStripe\ORM\DB;
@@ -20,17 +26,17 @@ class LegacyFieldCleanupTask extends BuildTask
     /**
      * @var string
      */
-    protected $title = 'Calendar Legacy Field Cleanup';
+    protected string $title = 'Calendar Legacy Field Cleanup';
 
     /**
      * @var string
      */
-    private static string $segment = 'calendar-legacy-field-cleanup-task';
+    protected static string $commandName = 'calendar-legacy-field-cleanup-task';
 
     /**
      * @var string
      */
-    protected $description = 'Migrates data from deprecated StartDatetime/EndDatetime fields to ' .
+    protected static string $description = 'Migrates data from deprecated StartDatetime/EndDatetime fields to ' .
                            'StartDate/StartTime/EndDate/EndTime fields';
 
     /**
@@ -41,29 +47,25 @@ class LegacyFieldCleanupTask extends BuildTask
     /**
      * Run the task
      */
-    public function run($request)
+    #[Override]
+    protected function execute(InputInterface $input, PolyOutput $output): int
     {
         $this->message('Starting legacy field cleanup for Calendar module...');
-
         // Check if we're in dev mode for safety
         if (!Director::isDev()) {
             $this->message('ERROR: This task should only be run in dev mode for safety.', 'error');
-            return;
+            return Command::FAILURE;
         }
-
         // Step 1: Check for existing data in deprecated fields
         $this->checkDeprecatedData();
-
         // Step 2: Migrate data if needed
         $this->migrateData();
-
         // Step 3: Verify data integrity
         $this->verifyDataIntegrity();
-
         // Step 4: Show cleanup recommendations
         $this->showCleanupRecommendations();
-
         $this->message('Legacy field cleanup complete!');
+        return Command::SUCCESS;
     }
 
     /**
@@ -120,7 +122,7 @@ class LegacyFieldCleanupTask extends BuildTask
 
                 // Migrate StartDatetime to StartDate and StartTime
                 if ($event->StartDatetime) {
-                    $datetime = new \DateTime($event->StartDatetime);
+                    $datetime = new DateTime($event->StartDatetime);
 
                     if (!$event->StartDate) {
                         $event->StartDate = $datetime->format('Y-m-d');
@@ -135,7 +137,7 @@ class LegacyFieldCleanupTask extends BuildTask
 
                 // Migrate EndDatetime to EndDate and EndTime
                 if ($event->EndDatetime) {
-                    $datetime = new \DateTime($event->EndDatetime);
+                    $datetime = new DateTime($event->EndDatetime);
 
                     if (!$event->EndDate) {
                         $event->EndDate = $datetime->format('Y-m-d');
@@ -153,7 +155,7 @@ class LegacyFieldCleanupTask extends BuildTask
                     $migrated++;
                     $this->message("Migrated event: {$event->Title} (ID: {$event->ID})");
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $errors++;
                 $this->message("Error migrating event {$event->ID}: " . $e->getMessage(), 'error');
             }

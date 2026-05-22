@@ -2,11 +2,14 @@
 
 namespace Dynamic\Calendar\Page;
 
+use Page;
+use Override;
+use SilverStripe\Model\List\ArrayList;
+use Exception;
 use Carbon\Carbon;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Extension\CalendarCacheInvalidation;
 use Dynamic\Calendar\Model\Category;
-use Dynamic\Calendar\Model\EventException;
 use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Traits\EventPageOptimizations;
 use SilverStripe\Forms\CheckboxField;
@@ -15,14 +18,13 @@ use SilverStripe\Forms\FieldList;
 use SilverStripe\Forms\HeaderField;
 use SilverStripe\Forms\NumericField;
 use SilverStripe\Lumberjack\Model\Lumberjack;
-use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 
 /**
  * Class Calendar
  * @package Dynamic\Calendar\Page
  */
-class Calendar extends \Page
+class Calendar extends Page
 {
     use EventPageOptimizations;
     use CalendarCacheInvalidation;
@@ -45,7 +47,7 @@ class Calendar extends \Page
     /**
      * @var string
      */
-    private static string $icon_class = 'font-icon-p-event-alt';
+    private static string $cms_icon_class = 'font-icon-p-event-alt';
 
     /**
      * Default window in years for recurring events when no date filter is applied.
@@ -144,7 +146,7 @@ class Calendar extends \Page
      */
     public function getLumberjackTitle(): string
     {
-        return 'Events';
+        return _t('Dynamic\Calendar\Page\Calendar.LUMBERJACKTITLE', 'Events');
     }
 
 
@@ -152,45 +154,46 @@ class Calendar extends \Page
     /**
      * @return FieldList
      */
+    #[Override]
     public function getCMSFields(): FieldList
     {
         $fields = parent::getCMSFields();        // Add filtering configuration fields
+        $fields->findOrMakeTab('Root.FilterSettings', _t('Dynamic\Calendar\Page\Calendar.TAB_FILTERSETTINGS', 'Filter Settings'));
         $fields->addFieldsToTab('Root.FilterSettings', [
-            HeaderField::create('FilterOptionsHeader', 'Event Filtering Options'),
+            HeaderField::create('FilterOptionsHeader', _t('Dynamic\Calendar\Page\Calendar.FILTER_OPTIONS_HEADER', 'Event Filtering Options')),
 
             CheckboxField::create('ShowCategoryFilter')
-                ->setTitle('Show Category Filter')
-                ->setDescription('Allow visitors to filter events by category'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.SHOW_CATEGORY_FILTER', 'Show Category Filter'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.SHOW_CATEGORY_FILTER_DESC', 'Allow visitors to filter events by category')),
 
             CheckboxField::create('ShowEventTypeFilter')
-                ->setTitle('Show Event Type Filter')
-                ->setDescription('Allow visitors to filter between one-time and recurring events'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.SHOW_EVENT_TYPE_FILTER', 'Show Event Type Filter'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.SHOW_EVENT_TYPE_FILTER_DESC', 'Allow visitors to filter between one-time and recurring events')),
 
             CheckboxField::create('ShowAllDayFilter')
-                ->setTitle('Show All-Day Filter')
-                ->setDescription('Allow visitors to filter between all-day and timed events'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.SHOW_ALL_DAY_FILTER', 'Show All-Day Filter'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.SHOW_ALL_DAY_FILTER_DESC', 'Allow visitors to filter between all-day and timed events')),
 
-            HeaderField::create('DefaultSettingsHeader', 'Default Settings'),
+            HeaderField::create('DefaultSettingsHeader', _t('Dynamic\Calendar\Page\Calendar.DEFAULT_SETTINGS_HEADER', 'Default Settings')),
 
             NumericField::create('EventsPerPage')
-                ->setTitle('Events Per Page')
-                ->setDescription('Number of events to display per page (default: 12)'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.EVENTS_PER_PAGE', 'Events Per Page'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.EVENTS_PER_PAGE_DESC', 'Number of events to display per page (default: 12)')),
 
             NumericField::create('DefaultFromDateMonths')
-                ->setTitle('Default Start Date (Months from Now)')
-                ->setDescription('How many months from current date to start showing events (0 = current month)'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_FROM_DATE', 'Default Start Date (Months from Now)'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_FROM_DATE_DESC', 'How many months from current date to start showing events (0 = current month)')),
 
             NumericField::create('DefaultToDateMonths')
-                ->setTitle('Default End Date (Months from Now)')
-                ->setDescription('How many months from current date to show events until (6 = 6 months from now)'),
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_TO_DATE', 'Default End Date (Months from Now)'))
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_TO_DATE_DESC', 'How many months from current date to show events until (6 = 6 months from now)')),
 
-            HeaderField::create('CategoryDefaultsHeader', 'Default Category Selection'),
+            HeaderField::create('CategoryDefaultsHeader', _t('Dynamic\Calendar\Page\Calendar.CATEGORY_DEFAULTS_HEADER', 'Default Category Selection')),
 
             CheckboxSetField::create('DefaultCategories')
-                ->setTitle('Default Selected Categories')
-                ->setDescription('Categories that will be pre-selected when visitors first view the calendar')
+                ->setTitle(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_SELECTED_CATEGORIES', 'Default Selected Categories'))
                 ->setSource(Category::get()->map('ID', 'Title'))
-                ->setDescription('Leave empty to show all categories by default'),
+                ->setDescription(_t('Dynamic\Calendar\Page\Calendar.DEFAULT_CATEGORIES_EMPTY_DESC', 'Leave empty to show all categories by default')),
         ]);
 
         return $fields;
@@ -245,7 +248,7 @@ class Calendar extends \Page
         if (isset($filterAny['Categories.ID'])) {
             $categories = Category::get()->byIDs($filterAny['Categories.ID']);
             $subs = $categories->relation('Children');
-            $filterAny['Categories.ID'] = $filterAny['Categories.ID'] + (array)$subs->map('ID', 'ID')->toArray();
+            $filterAny['Categories.ID'] += (array)$subs->map('ID', 'ID')->toArray();
 
             return $filterAny;
         }
@@ -254,6 +257,7 @@ class Calendar extends \Page
     /**
      * @return string
      */
+    #[Override]
     public function getControllerName(): string
     {
         return CalendarController::class;
@@ -321,8 +325,7 @@ class Calendar extends \Page
         }
 
         $recurringEvents = EventPage::get()
-            ->filter($recurringEventsFilter)
-            ->exclude('Recursion', 'NONE');
+            ->filter($recurringEventsFilter)->exclude(['Recursion' => 'NONE']);
 
         // Retrieve the recurring window years config value once before the loop for performance
         $windowYears = $this->config()->get('default_recurring_window_years')
@@ -422,7 +425,7 @@ class Calendar extends \Page
                     if ($toDate && $eventDate->startOfDay()->gt($toDate->copy()->startOfDay())) {
                         continue;
                     }
-                } catch (\Exception $e) {
+                } catch (Exception) {
                     // Skip events with unparseable dates
                     continue;
                 }
@@ -448,6 +451,7 @@ class Calendar extends \Page
     /**
      * Clear caches when calendar settings are modified
      */
+    #[Override]
     public function onAfterWrite(): void
     {
         parent::onAfterWrite();

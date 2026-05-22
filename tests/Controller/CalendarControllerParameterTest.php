@@ -2,6 +2,7 @@
 
 namespace Dynamic\Calendar\Tests\Controller;
 
+use ReflectionClass;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Page\Calendar;
 use SilverStripe\Control\HTTPRequest;
@@ -21,9 +22,8 @@ class CalendarControllerParameterTest extends SapphireTest
 
         $request = new HTTPRequest('GET', '/', ['from' => '2025-10-01']);
 
-        $reflection = new \ReflectionClass($controller);
+        $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getFromDate');
-        $method->setAccessible(true);
 
         $result = $method->invoke($controller, $request);
 
@@ -38,9 +38,8 @@ class CalendarControllerParameterTest extends SapphireTest
 
         $request = new HTTPRequest('GET', '/', ['start' => '2025-10-01']);
 
-        $reflection = new \ReflectionClass($controller);
+        $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getFromDate');
-        $method->setAccessible(true);
 
         $result = $method->invoke($controller, $request);
 
@@ -55,9 +54,8 @@ class CalendarControllerParameterTest extends SapphireTest
 
         $request = new HTTPRequest('GET', '/', ['to' => '2025-10-31']);
 
-        $reflection = new \ReflectionClass($controller);
+        $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getToDate');
-        $method->setAccessible(true);
 
         $result = $method->invoke($controller, $request);
 
@@ -72,9 +70,8 @@ class CalendarControllerParameterTest extends SapphireTest
 
         $request = new HTTPRequest('GET', '/', ['end' => '2025-10-31']);
 
-        $reflection = new \ReflectionClass($controller);
+        $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getToDate');
-        $method->setAccessible(true);
 
         $result = $method->invoke($controller, $request);
 
@@ -92,9 +89,8 @@ class CalendarControllerParameterTest extends SapphireTest
             'start' => '2025-09-01',
         ]);
 
-        $reflection = new \ReflectionClass($controller);
+        $reflection = new ReflectionClass($controller);
         $method = $reflection->getMethod('getFromDate');
-        $method->setAccessible(true);
 
         $result = $method->invoke($controller, $request);
 

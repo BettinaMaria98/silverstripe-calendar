@@ -102,7 +102,7 @@ class CalendarSubscriptionTest extends FunctionalTest
      * Test that subscription button is present in calendar template
      * Note: Skipped in CI - requires built JavaScript assets (vendors.bundle.js)
      */
-    public function testSubscriptionButtonPresent()
+    public function testSubscriptionButtonPresent(): never
     {
         $this->markTestSkipped('Requires built JavaScript assets not available in CI environment');
 
@@ -122,7 +122,7 @@ class CalendarSubscriptionTest extends FunctionalTest
      * Test that subscription modal is present in calendar template
      * Note: Skipped in CI - requires built JavaScript assets (vendors.bundle.js)
      */
-    public function testSubscriptionModalPresent()
+    public function testSubscriptionModalPresent(): never
     {
         $this->markTestSkipped('Requires built JavaScript assets not available in CI environment');
 

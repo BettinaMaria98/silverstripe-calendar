@@ -8,7 +8,6 @@ use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Dev\SapphireTest;
-use SilverStripe\Versioned\Versioned;
 
 /**
  * Carbon Recursion Test
@@ -97,9 +96,7 @@ class CarbonRecursionTest extends SapphireTest
         }
 
         // Check specific dates
-        $dates = array_map(function ($occ) {
-            return $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => $occ->StartDate, $occurrences);
         $expectedDates = ['2025-06-16', '2025-06-23', '2025-06-30', '2025-07-07', '2025-07-14'];
 
         $this->assertEquals($expectedDates, $dates);
@@ -128,9 +125,7 @@ class CarbonRecursionTest extends SapphireTest
         $this->assertCount(6, $occurrences);
 
         // Check that dates are correct
-        $dates = array_map(function ($occ) {
-            return $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => $occ->StartDate, $occurrences);
         $expectedDates = ['2025-06-15', '2025-07-15', '2025-08-15', '2025-09-15', '2025-10-15', '2025-11-15'];
 
         $this->assertEquals($expectedDates, $dates);
@@ -217,9 +212,7 @@ class CarbonRecursionTest extends SapphireTest
         $this->assertCount(4, $occurrences);
 
         // Check that the 18th is not included
-        $dates = array_map(function ($occ) {
-            return (string) $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => (string) $occ->StartDate, $occurrences);
         $this->assertNotContains('2025-06-18', $dates);
         $this->assertContains('2025-06-16', $dates);
         $this->assertContains('2025-06-17', $dates);
@@ -374,9 +367,7 @@ class CarbonRecursionTest extends SapphireTest
         $this->assertEquals('2025-06-10', $lastOccurrence->StartDate, 'Last occurrence should be on RecursionEndDate');
 
         // Verify no occurrences exist after the RecursionEndDate
-        $dates = array_map(function ($occ) {
-            return $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => $occ->StartDate, $occurrences);
         $this->assertNotContains('2025-06-11', $dates, 'Should not have occurrence after RecursionEndDate');
         $this->assertNotContains('2025-06-15', $dates, 'Should not have occurrence after RecursionEndDate');
     }
@@ -404,9 +395,7 @@ class CarbonRecursionTest extends SapphireTest
         // Should have exactly 3 weekly occurrences
         $this->assertCount(3, $occurrences, 'Weekly event should generate exactly 3 occurrences');
 
-        $dates = array_map(function ($occ) {
-            return $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => $occ->StartDate, $occurrences);
         $expectedDates = ['2025-06-02', '2025-06-09', '2025-06-16'];
 
         $this->assertEquals($expectedDates, $dates, 'Should only have occurrences up to RecursionEndDate');
@@ -434,9 +423,7 @@ class CarbonRecursionTest extends SapphireTest
         // Should have occurrences on: Jun 1, 4, 7 (but not 10 since it's after end date)
         $this->assertCount(3, $occurrences);
 
-        $dates = array_map(function ($occ) {
-            return $occ->StartDate;
-        }, $occurrences);
+        $dates = array_map(fn($occ) => $occ->StartDate, $occurrences);
         $expectedDates = ['2025-06-01', '2025-06-04', '2025-06-07'];
 
         $this->assertEquals($expectedDates, $dates);

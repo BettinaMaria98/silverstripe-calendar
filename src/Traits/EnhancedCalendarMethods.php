@@ -2,10 +2,11 @@
 
 namespace Dynamic\Calendar\Traits;
 
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\PaginatedList;
 use Carbon\Carbon;
 use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\EventPage;
-use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\DataList;
 
 /**
@@ -99,15 +100,14 @@ trait EnhancedCalendarMethods
     protected function getRegularEvents(string $startDate, string $endDate): DataList
     {
         $events = EventPage::get()
-            ->filter($this->getDefaultFilter())
-            ->filter('Recursion', 'NONE')
+            ->filter($this->getDefaultFilter())->filter(['Recursion' => 'NONE'])
             ->filterAny([
                 'StartDate:GreaterThanOrEqual' => $startDate,
                 'EndDate:GreaterThanOrEqual' => Carbon::now()->format('Y-m-d'),
             ]);
 
         if ($endDate) {
-            $events = $events->filter('StartDate:LessThanOrEqual', $endDate);
+            $events = $events->filter(['StartDate:LessThanOrEqual' => $endDate]);
         }
 
         return $events;
@@ -121,8 +121,7 @@ trait EnhancedCalendarMethods
     protected function getRecurringEvents(): DataList
     {
         return EventPage::get()
-            ->filter($this->getDefaultFilter())
-            ->filter('Recursion:not', 'NONE');
+            ->filter($this->getDefaultFilter())->filter(['Recursion:not' => 'NONE']);
     }
 
     /**
@@ -170,7 +169,7 @@ trait EnhancedCalendarMethods
 
             // Filter by title
             if ($title = $request->getVar('Title')) {
-                if (stripos($event->Title, $title) === false) {
+                if (stripos((string) $event->Title, (string) $title) === false) {
                     $include = false;
                 }
             }
@@ -220,11 +219,11 @@ trait EnhancedCalendarMethods
     /**
      * Get paginated combined events
      *
-     * @return \SilverStripe\ORM\PaginatedList
+     * @return PaginatedList
      */
     public function getPaginatedCombinedEvents()
     {
-        return \SilverStripe\ORM\PaginatedList::create($this->getCombinedEvents(), $this->getRequest())
+        return PaginatedList::create($this->getCombinedEvents(), $this->getRequest())
             ->setPageLength($this->data()->config()->get('events_per_page'));
     }
 
@@ -324,10 +323,7 @@ trait EnhancedCalendarMethods
 
         // Get regular events
         $regularEvents = EventPage::get()
-            ->filter($this->getDefaultFilter())
-            ->filter('Recursion', 'NONE')
-            ->filter('StartDate:GreaterThanOrEqual', $now->format('Y-m-d'))
-            ->sort('StartDate', 'ASC')
+            ->filter($this->getDefaultFilter())->filter(['Recursion' => 'NONE'])->filter(['StartDate:GreaterThanOrEqual' => $now->format('Y-m-d')])->sort(['StartDate' => 'ASC'])
             ->limit($limit);
 
         foreach ($regularEvents as $event) {

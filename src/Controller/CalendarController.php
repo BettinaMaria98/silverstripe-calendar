@@ -2,6 +2,12 @@
 
 namespace Dynamic\Calendar\Controller;
 
+use PageController;
+use SilverStripe\Model\List\PaginatedList;
+use Override;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\ArrayData;
+use Exception;
 use Carbon\Carbon;
 use Dynamic\Calendar\Model\Category;
 use Dynamic\Calendar\Model\EventInstance;
@@ -9,9 +15,6 @@ use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Form\CalendarFilterForm;
 use SilverStripe\Control\HTTPRequest;
-use SilverStripe\ORM\ArrayList;
-use SilverStripe\ORM\PaginatedList;
-use SilverStripe\View\ArrayData;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Cache\CacheFactory;
 use Psr\SimpleCache\CacheInterface;
@@ -24,13 +27,8 @@ use Psr\SimpleCache\CacheInterface;
  *
  * @package Dynamic\Calendar\Controller
  */
-class CalendarController extends \PageController
+class CalendarController extends PageController
 {
-    /**
-     * @var Calendar
-     */
-    protected Calendar $calendar;
-
     /**
      * @var array
      */
@@ -85,10 +83,9 @@ class CalendarController extends \PageController
      *
      * @param Calendar $calendar
      */
-    public function __construct(Calendar $calendar)
+    public function __construct(protected Calendar $calendar)
     {
-        $this->calendar = $calendar;
-        parent::__construct($calendar);
+        parent::__construct($this->calendar);
     }
 
     /**
@@ -347,8 +344,7 @@ class CalendarController extends \PageController
         return EventPage::get()
             ->filter([
                 'ParentID' => $this->calendar->ID,
-            ])
-            ->exclude('Recursion', 'NONE')
+            ])->exclude(['Recursion' => 'NONE'])
             ->count();
     }
 
@@ -373,6 +369,7 @@ class CalendarController extends \PageController
      * @param string $action
      * @return string
      */
+    #[Override]
     public function Link($action = null): string
     {
         return $this->calendar->Link($action);
@@ -415,7 +412,7 @@ class CalendarController extends \PageController
         // Get the category objects
         $availableCategories = ArrayList::create();
         if (!empty($categoryIDs)) {
-            $categories = Category::get()->byIDs($categoryIDs)->sort('Title ASC');
+            $categories = Category::get()->byIDs($categoryIDs)->sort(['Title' => 'ASC']);
 
             foreach ($categories as $category) {
                 $categoryData = ArrayData::create([
@@ -611,7 +608,7 @@ class CalendarController extends \PageController
 
             if ($eventCategories && $eventCategories->exists()) {
                 $categoryNames = $eventCategories->map('Title')->toArray();
-                $ics[] = 'CATEGORIES:' . implode(',', array_map([$this, 'escapeICSValue'], $categoryNames));
+                $ics[] = 'CATEGORIES:' . implode(',', array_map($this->escapeICSValue(...), $categoryNames));
             }
 
             // Add URL if available
@@ -623,7 +620,7 @@ class CalendarController extends \PageController
             $ics[] = 'END:VEVENT';
 
             return $ics;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Log error and continue with other events
             error_log("Error transforming event {$event->ID} to ICS: " . $e->getMessage());
             return null;
@@ -656,9 +653,9 @@ class CalendarController extends \PageController
         // Hash timestamps to avoid special characters
         // Support both start/end (FullCalendar) and from/to parameter names
         $startParam = $request->getVar('start') ?? $request->getVar('from');
-        $start = $startParam ? md5($startParam) : 'no-start';
+        $start = $startParam ? md5((string) $startParam) : 'no-start';
         $endParam = $request->getVar('end') ?? $request->getVar('to');
-        $end = $endParam ? md5($endParam) : 'no-end';
+        $end = $endParam ? md5((string) $endParam) : 'no-end';
         $cats = $request->getVar('categories') ? md5(serialize($request->getVar('categories'))) : 'no-cats';
 
         $parts = [

@@ -2,13 +2,14 @@
 
 namespace Dynamic\Calendar\Tests\Controller;
 
+use SilverStripe\Model\List\ArrayList;
+use ReflectionClass;
 use Carbon\Carbon;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Dev\FunctionalTest;
-use SilverStripe\ORM\ArrayList;
 
 /**
  * Class CalendarControllerTest
@@ -163,9 +164,8 @@ class CalendarControllerTest extends FunctionalTest
     public function testGetContrastColor()
     {
         // Using reflection to test private method
-        $reflection = new \ReflectionClass($this->controller);
+        $reflection = new ReflectionClass($this->controller);
         $method = $reflection->getMethod('getContrastColor');
-        $method->setAccessible(true);
 
         // Test with dark color (should return white)
         $darkColor = '#000000';

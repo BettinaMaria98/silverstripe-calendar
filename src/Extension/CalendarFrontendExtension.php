@@ -2,6 +2,8 @@
 
 namespace Dynamic\Calendar\Extension;
 
+use Dynamic\Calendar\Controller\EventPageController;
+use Dynamic\Calendar\Controller\CalendarController;
 use SilverStripe\Core\Extension;
 use SilverStripe\View\Requirements;
 
@@ -33,8 +35,8 @@ class CalendarFrontendExtension extends Extension
 
         // Include on EventPage and Calendar pages
         if (
-            $controller instanceof \Dynamic\Calendar\Controller\EventPageController ||
-            $controller instanceof \Dynamic\Calendar\Controller\CalendarController
+            $controller instanceof EventPageController ||
+            $controller instanceof CalendarController
         ) {
             return true;
         }

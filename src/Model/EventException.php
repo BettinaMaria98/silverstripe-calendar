@@ -2,6 +2,11 @@
 
 namespace Dynamic\Calendar\Model;
 
+use InvalidArgumentException;
+use Override;
+use SilverStripe\Core\Validation\ValidationException;
+use DateTime;
+use SilverStripe\Core\Validation\ValidationResult;
 use Dynamic\Calendar\Extension\CalendarCacheInvalidation;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\Director;
@@ -12,8 +17,6 @@ use SilverStripe\Forms\HTMLEditor\HTMLEditorField;
 use SilverStripe\Forms\TextField;
 use SilverStripe\Forms\TimeField;
 use SilverStripe\ORM\DataObject;
-use SilverStripe\ORM\ValidationException;
-use SilverStripe\ORM\ValidationResult;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 
@@ -203,7 +206,7 @@ class EventException extends DataObject implements PermissionProvider
         $overridableFields = $this->config()->get('overridable_fields');
 
         if (!isset($overridableFields[$property])) {
-            throw new \InvalidArgumentException("Property '{$property}' cannot be overridden");
+            throw new InvalidArgumentException("Property '{$property}' cannot be overridden");
         }
 
         $overrideField = $overridableFields[$property];
@@ -289,9 +292,10 @@ class EventException extends DataObject implements PermissionProvider
     /**
      * Validation
      *
-     * @return \SilverStripe\ORM\ValidationResult
+     * @return ValidationResult
      */
-    public function validate()
+    #[Override]
+    public function validate(): ValidationResult
     {
         $result = parent::validate();
 
@@ -303,12 +307,12 @@ class EventException extends DataObject implements PermissionProvider
             ]);
 
             if ($this->ID) {
-                $existing = $existing->exclude('ID', $this->ID);
+                $existing = $existing->exclude(['ID' => $this->ID]);
             }
 
             if ($existing->count() > 0) {
                 $result->addError(
-                    'An exception already exists for this event on this date',
+                    _t('Dynamic\Calendar\Model\EventException.DUPLICATE_EXCEPTION', 'An exception already exists for this event on this date'),
                     'DUPLICATE_EXCEPTION'
                 );
             }
@@ -320,6 +324,7 @@ class EventException extends DataObject implements PermissionProvider
     /**
      * Validate the exception before writing
      */
+    #[Override]
     protected function onBeforeWrite()
     {
         parent::onBeforeWrite();
@@ -332,28 +337,29 @@ class EventException extends DataObject implements PermissionProvider
 
         // Ensure we have an original event
         if (!$this->OriginalEventID) {
-            throw ValidationException::create('An EventException must be associated with an event');
+            throw ValidationException::create(_t('Dynamic\Calendar\Model\EventException.NO_EVENT', 'An EventException must be associated with an event'));
         }
 
         // Ensure we have an instance date
         if (!$this->InstanceDate) {
-            throw ValidationException::create('An EventException must specify an instance date');
+            throw ValidationException::create(_t('Dynamic\Calendar\Model\EventException.NO_INSTANCE_DATE', 'An EventException must specify an instance date'));
         }
 
         // Ensure the original event exists and is recurring
         $originalEvent = $this->OriginalEvent();
         if (!$originalEvent || !$originalEvent->exists()) {
-            throw ValidationException::create('The associated event does not exist');
+            throw ValidationException::create(_t('Dynamic\Calendar\Model\EventException.EVENT_NOT_FOUND', 'The associated event does not exist'));
         }
 
         if (!$originalEvent->eventRecurs()) {
-            throw ValidationException::create('EventExceptions can only be created for recurring events');
+            throw ValidationException::create(_t('Dynamic\Calendar\Model\EventException.NOT_RECURRING', 'EventExceptions can only be created for recurring events'));
         }
     }
 
     /**
      * Clear caches when exception is modified
      */
+    #[Override]
     protected function onAfterWrite()
     {
         parent::onAfterWrite();
@@ -370,6 +376,7 @@ class EventException extends DataObject implements PermissionProvider
     /**
      * Clear caches when exception is deleted
      */
+    #[Override]
     protected function onAfterDelete()
     {
         parent::onAfterDelete();
@@ -392,7 +399,7 @@ class EventException extends DataObject implements PermissionProvider
     {
         $overridableFields = $this->config()->get('overridable_fields');
 
-        foreach ($overridableFields as $property => $overrideField) {
+        foreach ($overridableFields as $overrideField) {
             if (!empty($this->$overrideField)) {
                 return true;
             }
@@ -409,9 +416,9 @@ class EventException extends DataObject implements PermissionProvider
     public function providePermissions(): array
     {
         return [
-            'EDIT_EVENT_EXCEPTIONS' => 'Edit event exceptions',
-            'DELETE_EVENT_EXCEPTIONS' => 'Delete event exceptions',
-            'CREATE_EVENT_EXCEPTIONS' => 'Create event exceptions',
+            'EDIT_EVENT_EXCEPTIONS'   => _t('Dynamic\Calendar\Model\EventException.EDIT_PERMISSION', 'Edit event exceptions'),
+            'DELETE_EVENT_EXCEPTIONS' => _t('Dynamic\Calendar\Model\EventException.DELETE_PERMISSION', 'Delete event exceptions'),
+            'CREATE_EVENT_EXCEPTIONS' => _t('Dynamic\Calendar\Model\EventException.CREATE_PERMISSION', 'Create event exceptions'),
         ];
     }
 
@@ -419,6 +426,7 @@ class EventException extends DataObject implements PermissionProvider
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canView($member = null): bool
     {
         if (Permission::check('ADMIN', 'any', $member)) {
@@ -433,6 +441,7 @@ class EventException extends DataObject implements PermissionProvider
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canEdit($member = null): bool
     {
         if (Permission::check('ADMIN', 'any', $member) || Permission::check('EDIT_EVENT_EXCEPTIONS', 'any', $member)) {
@@ -447,6 +456,7 @@ class EventException extends DataObject implements PermissionProvider
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canDelete($member = null): bool
     {
         if (
@@ -463,6 +473,7 @@ class EventException extends DataObject implements PermissionProvider
     /**
      * @return FieldList
      */
+    #[Override]
     public function getCMSFields()
     {
         $fields = parent::getCMSFields();
@@ -472,15 +483,15 @@ class EventException extends DataObject implements PermissionProvider
 
         // Add event selection dropdown
         $eventOptions = [];
-        $events = EventPage::get()->filter('Recursion:not', '')->sort('Title ASC');
+        $events = EventPage::get()->filter(['Recursion:not' => ''])->sort(['Title' => 'ASC']);
         foreach ($events as $event) {
             $eventOptions[$event->ID] = $event->Title;
         }
 
-        $eventField = DropdownField::create('OriginalEventID', 'Event')
+        $eventField = DropdownField::create('OriginalEventID', _t('Dynamic\Calendar\Model\EventException.EVENT_FIELD', 'Event'))
             ->setSource($eventOptions)
-            ->setDescription('Select the recurring event this exception applies to')
-            ->setEmptyString('-- Select an event --');
+            ->setDescription(_t('Dynamic\Calendar\Model\EventException.EVENT_FIELD_DESC', 'Select the recurring event this exception applies to'))
+            ->setEmptyString(_t('Dynamic\Calendar\Model\EventException.EVENT_EMPTY', '-- Select an event --'));
 
         // Get the original event to populate instance dropdown
         $originalEvent = $this->OriginalEvent();
@@ -488,8 +499,8 @@ class EventException extends DataObject implements PermissionProvider
 
         if ($originalEvent && $originalEvent->exists() && $originalEvent->eventRecurs()) {
             // Get future instances for the next 12 months
-            $endDate = new \DateTime('+12 months');
-            $instances = $originalEvent->getOccurrences(new \DateTime(), $endDate);
+            $endDate = new DateTime('+12 months');
+            $instances = $originalEvent->getOccurrences(new DateTime(), $endDate);
 
             foreach ($instances as $instance) {
                 $instanceDate = $instance->getInstanceDate();
@@ -500,7 +511,7 @@ class EventException extends DataObject implements PermissionProvider
 
             // If this is an existing exception and its InstanceDate is not in the options, add it
             if ($this->exists() && $this->InstanceDate && !isset($instanceOptions[$this->InstanceDate])) {
-                $savedDate = new \DateTime($this->InstanceDate);
+                $savedDate = new DateTime($this->InstanceDate);
                 $displayDate = $savedDate->format('l, F j, Y');
                 $instanceOptions[$this->InstanceDate] = $displayDate . ' (saved)';
             }
@@ -508,10 +519,10 @@ class EventException extends DataObject implements PermissionProvider
 
         // Create instance selection field
         if (!empty($instanceOptions)) {
-            $instanceField = DropdownField::create('InstanceDate', 'Event Instance')
+            $instanceField = DropdownField::create('InstanceDate', _t('Dynamic\Calendar\Model\EventException.INSTANCE_FIELD', 'Event Instance'))
                 ->setSource($instanceOptions)
-                ->setDescription('Select the specific event instance this exception applies to')
-                ->setEmptyString('-- Select an instance --');
+                ->setDescription(_t('Dynamic\Calendar\Model\EventException.INSTANCE_FIELD_DESC', 'Select the specific event instance this exception applies to'))
+                ->setEmptyString(_t('Dynamic\Calendar\Model\EventException.INSTANCE_EMPTY', '-- Select an instance --'));
 
             // Set the current value if this is an existing record
             if ($this->exists() && $this->InstanceDate) {
@@ -519,8 +530,8 @@ class EventException extends DataObject implements PermissionProvider
             }
         } else {
             // Fallback to date field if no instances available
-            $instanceField = DateField::create('InstanceDate', 'Instance Date')
-                ->setDescription('The date of the event instance this exception applies to')
+            $instanceField = DateField::create('InstanceDate', _t('Dynamic\Calendar\Model\EventException.INSTANCE_DATE_FIELD', 'Instance Date'))
+                ->setDescription(_t('Dynamic\Calendar\Model\EventException.INSTANCE_DATE_DESC', 'The date of the event instance this exception applies to'))
                 ->setHTML5(true);
         }
 
@@ -528,38 +539,39 @@ class EventException extends DataObject implements PermissionProvider
         $fields->addFieldsToTab('Root.Main', [
             $eventField,
             $instanceField,
-            DropdownField::create('Action', 'Exception Type')
+            DropdownField::create('Action', _t('Dynamic\Calendar\Model\EventException.EXCEPTION_TYPE', 'Exception Type'))
                 ->setSource([
-                    'MODIFIED' => 'Modify this instance',
-                    'DELETED' => 'Delete this instance'
+                    'MODIFIED' => _t('Dynamic\Calendar\Model\EventException.MODIFY_INSTANCE', 'Modify this instance'),
+                    'DELETED'  => _t('Dynamic\Calendar\Model\EventException.DELETE_INSTANCE', 'Delete this instance'),
                 ])
-                ->setDescription('Choose whether to modify or delete this specific event instance'),
-            TextField::create('Reason', 'Reason')
-                ->setDescription('Optional reason for this exception')
+                ->setDescription(_t('Dynamic\Calendar\Model\EventException.EXCEPTION_TYPE_DESC', 'Choose whether to modify or delete this specific event instance')),
+            TextField::create('Reason', _t('Dynamic\Calendar\Model\EventException.REASON_FIELD', 'Reason'))
+                ->setDescription(_t('Dynamic\Calendar\Model\EventException.REASON_DESC', 'Optional reason for this exception'))
         ]);
 
         // Group modification fields
+        $fields->findOrMakeTab('Root.Modifications', _t('Dynamic\Calendar\Model\EventException.TAB_MODIFICATIONS', 'Modifications'));
         $fields->addFieldsToTab(
             'Root.Modifications',
             [
-                TextField::create('ModifiedTitle', 'Modified Title')
-                    ->setDescription('Leave empty to use the original event title'),
-                HTMLEditorField::create('ModifiedContent', 'Modified Content')
-                    ->setDescription('Leave empty to use the original event content'),
-                DateField::create('ModifiedStartDate', 'Modified Start Date')
-                    ->setDescription('Leave empty to use the original start date')
+                TextField::create('ModifiedTitle', _t('Dynamic\Calendar\Model\EventException.MODIFIED_TITLE', 'Modified Title'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_TITLE_DESC', 'Leave empty to use the original event title')),
+                HTMLEditorField::create('ModifiedContent', _t('Dynamic\Calendar\Model\EventException.MODIFIED_CONTENT', 'Modified Content'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_CONTENT_DESC', 'Leave empty to use the original event content')),
+                DateField::create('ModifiedStartDate', _t('Dynamic\Calendar\Model\EventException.MODIFIED_START_DATE', 'Modified Start Date'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_START_DATE_DESC', 'Leave empty to use the original start date'))
                     ->setHTML5(true),
-                TimeField::create('ModifiedStartTime', 'Modified Start Time')
-                    ->setDescription('Leave empty to use the original start time. Set to 00:00:00 for midnight.')
+                TimeField::create('ModifiedStartTime', _t('Dynamic\Calendar\Model\EventException.MODIFIED_START_TIME', 'Modified Start Time'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_START_TIME_DESC', 'Leave empty to use the original start time. Set to 00:00:00 for midnight.'))
                     ->setAttribute('value', $this->ModifiedStartTime ?? ''),
-                DateField::create('ModifiedEndDate', 'Modified End Date')
-                    ->setDescription('Leave empty to use the original end date')
+                DateField::create('ModifiedEndDate', _t('Dynamic\Calendar\Model\EventException.MODIFIED_END_DATE', 'Modified End Date'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_END_DATE_DESC', 'Leave empty to use the original end date'))
                     ->setHTML5(true),
-                TimeField::create('ModifiedEndTime', 'Modified End Time')
-                    ->setDescription('Leave empty to use the original end time. Set to 00:00:00 for midnight.')
+                TimeField::create('ModifiedEndTime', _t('Dynamic\Calendar\Model\EventException.MODIFIED_END_TIME', 'Modified End Time'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.MODIFIED_END_TIME_DESC', 'Leave empty to use the original end time. Set to 00:00:00 for midnight.'))
                     ->setAttribute('value', $this->ModifiedEndTime ?? ''),
-                CheckboxField::create('ModifiedAllDay', 'All Day Event')
-                    ->setDescription('Override the all-day setting for this instance'),
+                CheckboxField::create('ModifiedAllDay', _t('Dynamic\Calendar\Model\EventException.ALL_DAY_EVENT', 'All Day Event'))
+                    ->setDescription(_t('Dynamic\Calendar\Model\EventException.ALL_DAY_EVENT_DESC', 'Override the all-day setting for this instance')),
             ]
         );
 
@@ -577,6 +589,7 @@ class EventException extends DataObject implements PermissionProvider
      *
      * @return string
      */
+    #[Override]
     public function getTitle()
     {
         $event = $this->OriginalEvent();
@@ -590,6 +603,7 @@ class EventException extends DataObject implements PermissionProvider
      * @param null $member
      * @return bool
      */
+    #[Override]
     public function canCreate($member = null, $context = []): bool
     {
         return Permission::check('ADMIN', 'any', $member)

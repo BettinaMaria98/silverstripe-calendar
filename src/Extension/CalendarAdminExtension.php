@@ -2,6 +2,8 @@
 
 namespace Dynamic\Calendar\Extension;
 
+use SilverStripe\Admin\ModelAdmin;
+use SilverStripe\CMS\Controllers\CMSPageEditController;
 use SilverStripe\Core\Extension;
 use SilverStripe\View\Requirements;
 
@@ -31,12 +33,12 @@ class CalendarAdminExtension extends Extension
         $controller = $this->getOwner();
 
         // Include in admin interface
-        if ($controller instanceof \SilverStripe\Admin\ModelAdmin) {
+        if ($controller instanceof ModelAdmin) {
             return true;
         }
 
         // Include in CMS edit forms for calendar pages
-        if ($controller instanceof \SilverStripe\CMS\Controllers\CMSPageEditController) {
+        if ($controller instanceof CMSPageEditController) {
             return true;
         }
 

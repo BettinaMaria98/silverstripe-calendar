@@ -2,6 +2,9 @@
 
 namespace Dynamic\Calendar\Model;
 
+use Override;
+use SilverStripe\Core\Validation\ValidationResult;
+use SilverStripe\ORM\ManyManyList;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
@@ -15,7 +18,6 @@ use SilverStripe\Forms\GridField\GridFieldConfig_RecordViewer;
 use RyanPotter\SilverStripeColorField\Forms\ColorField;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\Hierarchy\Hierarchy;
-use SilverStripe\ORM\ValidationResult;
 use SilverStripe\Security\Permission;
 use SilverStripe\Security\PermissionProvider;
 
@@ -31,7 +33,7 @@ use SilverStripe\Security\PermissionProvider;
  * @property string ParentID
  * @method Category Parent()
  *
- * @method \SilverStripe\ORM\ManyManyList Events()
+ * @method ManyManyList Events()
  *
  * @mixin Hierarchy
  */
@@ -92,7 +94,6 @@ class Category extends DataObject implements PermissionProvider
     private static array $searchable_fields = [
         'Title' => 'PartialMatchFilter',
         'Description' => 'PartialMatchFilter',
-        'ParentID' => 'ExactMatchFilter',
     ];
 
     /**
@@ -111,17 +112,16 @@ class Category extends DataObject implements PermissionProvider
     /**
      * @return FieldList
      */
+    #[Override]
     public function getCMSFields(): FieldList
     {
-        $this->beforeUpdateCMSFields(function (FieldList $fields) {
+        $this->beforeUpdateCMSFields(function (FieldList $fields): void {
             $remove = [
                 'URLSegment',
                 'Events',
             ];
 
-            $allowedParentCategories = Category::get()
-                ->filter('ParentID', 0)
-                ->exclude('ID', $this->ID);
+            $allowedParentCategories = Category::get()->filter(['ParentID' => 0])->exclude(['ID' => $this->ID]);
 
             if (!$allowedParentCategories->count()) {
                 $remove[] = 'ParentID';
@@ -129,9 +129,9 @@ class Category extends DataObject implements PermissionProvider
             $fields->replaceField(
                 'ParentID',
                 DropdownField::create('ParentID')
-                    ->setTitle('Parent Category')
+                    ->setTitle(_t('Dynamic\Calendar\Model\Category.PARENT_CATEGORY', 'Parent Category'))
                     ->setSource($allowedParentCategories)
-                    ->setEmptyString('-- select --')
+                    ->setEmptyString(_t('Dynamic\Calendar\Model\Category.SELECT_EMPTY', '-- select --'))
             );
 
             // Add color field for brand-consistent color selection with custom color picker
@@ -148,6 +148,7 @@ class Category extends DataObject implements PermissionProvider
             $fields->removeByName($remove);
 
             if ($this->exists()) {
+                $fields->findOrMakeTab('Root.Events', _t('Dynamic\Calendar\Model\Category.TAB_EVENTS', 'Events'));
                 $fields->addFieldToTab(
                     'Root.Events',
                     GridField::create(
@@ -169,16 +170,17 @@ class Category extends DataObject implements PermissionProvider
      *
      * @return ValidationResult
      */
+    #[Override]
     public function validate(): ValidationResult
     {
         $result = parent::validate();
 
         if (!$this->Title) {
-            $result->addFieldError('Title', 'A Title is required before you can save a category');
+            $result->addFieldError('Title', _t('Dynamic\Calendar\Model\Category.TITLE_REQUIRED', 'A Title is required before you can save a category'));
         }
 
-        if (Category::get()->filter('Title', $this->Title)->exclude('ID', $this->ID)->first()) {
-            $result->addFieldError('Title', 'A Category is already using that title. Please use a unique title.');
+        if (Category::get()->filter(['Title' => $this->Title])->exclude(['ID' => $this->ID])->first()) {
+            $result->addFieldError('Title', _t('Dynamic\Calendar\Model\Category.DUPLICATE_TITLE', 'A Category is already using that title. Please use a unique title.'));
         }
 
         return $result;
@@ -244,11 +246,8 @@ class Category extends DataObject implements PermissionProvider
 
         // Check if it's a valid legacy color name
         $colorMap = self::getLegacyColorMap();
-        if (isset($colorMap[$this->Color])) {
-            return $colorMap[$this->Color];
-        }
 
-        return null;
+        return $colorMap[$this->Color] ?? null;
     }
 
     /**
@@ -264,7 +263,7 @@ class Category extends DataObject implements PermissionProvider
         }
 
         // If the color starts with #, it's already a hex value (from ColorField)
-        if ($this->Color && strpos($this->Color, '#') === 0) {
+        if ($this->Color && str_starts_with($this->Color, '#')) {
             // Expand 3-character hex codes to 6 characters for consistency
             if (preg_match('/^#([a-fA-F0-9]{3})$/', $this->Color, $matches)) {
                 $expanded = $this->expandHexColor($matches[1]);
@@ -313,6 +312,7 @@ class Category extends DataObject implements PermissionProvider
     /**
      * @return void
      */
+    #[Override]
     public function onBeforeWrite(): void
     {
         parent::onBeforeWrite();
@@ -324,7 +324,7 @@ class Category extends DataObject implements PermissionProvider
         // Ensure that this object has a non-conflicting URLSegment value.
         $count = 2;
         while (!$this->validURLSegment()) {
-            $this->URLSegment = preg_replace('/-[0-9]+$/', null, $this->URLSegment) . '-' . $count;
+            $this->URLSegment = preg_replace('/-[0-9]+$/', '', $this->URLSegment) . '-' . $count;
             $count++;
         }
     }
@@ -338,6 +338,7 @@ class Category extends DataObject implements PermissionProvider
      *
      * @return bool|int
      */
+    #[Override]
     public function canCreate($member = null, $context = []): bool|int
     {
         return Permission::check('CREATE_CATEGORY', 'any', $member);
@@ -352,6 +353,7 @@ class Category extends DataObject implements PermissionProvider
      *
      * @return bool|int
      */
+    #[Override]
     public function canEdit($member = null, $context = []): bool|int
     {
         return Permission::check('EDIT_CATEGORY', 'any', $member);
@@ -366,6 +368,7 @@ class Category extends DataObject implements PermissionProvider
      *
      * @return bool|int
      */
+    #[Override]
     public function canDelete($member = null, $context = []): bool|int
     {
         return Permission::check('DELETE_CATEGORY', 'any', $member);
@@ -380,6 +383,7 @@ class Category extends DataObject implements PermissionProvider
      *
      * @return bool
      */
+    #[Override]
     public function canView($member = null, $context = []): bool
     {
         return true;
@@ -427,8 +431,8 @@ class Category extends DataObject implements PermissionProvider
             $exclude = ['ID' => $this->ID];
         }
 
-        return !SiteTree::get()->filter('URLSegment', $this->URLSegment)->first()
-            && !static::get()->filter('URLSegment', $this->URLSegment)->exclude($exclude)->first();
+        return !SiteTree::get()->filter(['URLSegment' => $this->URLSegment])->first()
+            && !static::get()->filter(['URLSegment' => $this->URLSegment])->exclude($exclude)->first();
     }
 
     /**

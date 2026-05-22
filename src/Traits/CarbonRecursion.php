@@ -2,8 +2,11 @@
 
 namespace Dynamic\Calendar\Traits;
 
+use Exception;
+use SilverStripe\Core\Injector\Injector;
+use Psr\Log\LoggerInterface;
+use SilverStripe\ORM\DataList;
 use Carbon\Carbon;
-use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 use Dynamic\Calendar\Model\EventException;
 use Dynamic\Calendar\Model\EventInstance;
@@ -163,12 +166,10 @@ trait CarbonRecursion
             }
 
             // Filter period to only include dates within our range
-            return $period->filter(function (Carbon $date) use ($rangeStart, $rangeEnd) {
-                return $date->between($rangeStart, $rangeEnd, true);
-            });
-        } catch (\Exception $e) {
+            return $period->filter(fn(Carbon $date) => $date->between($rangeStart, $rangeEnd, true));
+        } catch (Exception $e) {
             // Log error and return null to prevent crashes
-            $logger = \SilverStripe\Core\Injector\Injector::inst()->get(\Psr\Log\LoggerInterface::class);
+            $logger = Injector::inst()->get(LoggerInterface::class);
             $logger->error("Error creating Carbon period for event {$this->ID}: " . $e->getMessage());
             return null;
         }
@@ -414,11 +415,11 @@ trait CarbonRecursion
     /**
      * Get all exceptions for this event
      *
-     * @return \SilverStripe\ORM\DataList
+     * @return DataList
      */
     public function getExceptions()
     {
-        return EventException::get()->filter('OriginalEventID', $this->ID);
+        return EventException::get()->filter(['OriginalEventID' => $this->ID]);
     }
 
     /**
@@ -440,23 +441,30 @@ trait CarbonRecursion
     public function getRecurrenceDescription(): string
     {
         if (!$this->eventRecurs()) {
-            return 'Does not repeat';
+            return _t('Dynamic\Calendar\Page\EventPage.RECURSION_NONE', 'Does not repeat');
         }
 
         $interval = max(1, (int) $this->Interval);
-        $intervalText = $interval === 1 ? '' : " {$interval}";
 
         $pattern = match ($this->Recursion) {
-            'DAILY' => $interval === 1 ? 'Daily' : "Every {$interval} days",
-            'WEEKLY' => $interval === 1 ? 'Weekly' : "Every {$interval} weeks",
-            'MONTHLY' => $interval === 1 ? 'Monthly' : "Every {$interval} months",
-            'YEARLY' => $interval === 1 ? 'Yearly' : "Every {$interval} years",
-            default => 'Unknown pattern'
+            'DAILY'   => $interval === 1
+                ? _t('Dynamic\Calendar\Page\EventPage.RECURSION_DAILY', 'Daily')
+                : _t('Dynamic\Calendar\Page\EventPage.RECURSION_DAILY_N', 'Every {interval} days', ['interval' => $interval]),
+            'WEEKLY'  => $interval === 1
+                ? _t('Dynamic\Calendar\Page\EventPage.RECURSION_WEEKLY', 'Weekly')
+                : _t('Dynamic\Calendar\Page\EventPage.RECURSION_WEEKLY_N', 'Every {interval} weeks', ['interval' => $interval]),
+            'MONTHLY' => $interval === 1
+                ? _t('Dynamic\Calendar\Page\EventPage.RECURSION_MONTHLY', 'Monthly')
+                : _t('Dynamic\Calendar\Page\EventPage.RECURSION_MONTHLY_N', 'Every {interval} months', ['interval' => $interval]),
+            'YEARLY'  => $interval === 1
+                ? _t('Dynamic\Calendar\Page\EventPage.RECURSION_YEARLY', 'Yearly')
+                : _t('Dynamic\Calendar\Page\EventPage.RECURSION_YEARLY_N', 'Every {interval} years', ['interval' => $interval]),
+            default   => _t('Dynamic\Calendar\Page\EventPage.RECURSION_UNKNOWN', 'Unknown pattern'),
         };
 
         if ($this->RecursionEndDate) {
             $endDate = Carbon::parse($this->RecursionEndDate)->format('M j, Y');
-            $pattern .= " until {$endDate}";
+            $pattern .= ' ' . _t('Dynamic\Calendar\Page\EventPage.RECURSION_UNTIL', 'until {date}', ['date' => $endDate]);
         }
 
         return $pattern;

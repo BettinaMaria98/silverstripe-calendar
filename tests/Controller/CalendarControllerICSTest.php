@@ -96,7 +96,7 @@ class CalendarControllerICSTest extends FunctionalTest
                     $event->delete();
                 } catch (BadMethodCallException $e) {
                     // EventInstance objects don't have delete method, skip
-                    if (strpos($e->getMessage(), 'EventInstance') === false) {
+                    if (!str_contains($e->getMessage(), 'EventInstance')) {
                         throw $e;
                     }
                 }
@@ -310,7 +310,7 @@ class CalendarControllerICSTest extends FunctionalTest
         $this->assertStringContainsString('Weekly Event Instance 2', $icsContent);
 
         // Should have multiple VEVENT entries for the instances
-        $eventCount = substr_count($icsContent, 'BEGIN:VEVENT');
+        $eventCount = substr_count((string) $icsContent, 'BEGIN:VEVENT');
         $this->assertGreaterThan(2, $eventCount, 'Should have multiple event instances including our test events');
     }
 
@@ -320,7 +320,7 @@ class CalendarControllerICSTest extends FunctionalTest
     public function testICSActionWithEmptyCalendar()
     {
         // Remove all events
-        foreach (EventPage::get()->filter('ParentID', $this->calendar->ID) as $event) {
+        foreach (EventPage::get()->filter(['ParentID' => $this->calendar->ID]) as $event) {
             $event->delete();
         }
 

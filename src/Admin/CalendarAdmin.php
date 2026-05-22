@@ -2,6 +2,7 @@
 
 namespace Dynamic\Calendar\Admin;
 
+use Override;
 use Dynamic\Calendar\Model\Category;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Admin\ModelAdmin;
@@ -23,6 +24,8 @@ class CalendarAdmin extends ModelAdmin
      */
     private static string $url_segment = 'calendar-admin';
 
+    private static string $menu_icon_class = 'font-icon-calendar';
+
     /**
      * @var array
      */
@@ -36,6 +39,7 @@ class CalendarAdmin extends ModelAdmin
      *
      * @return DataList
      */
+    #[Override]
     public function getList()
     {
         $list = parent::getList();

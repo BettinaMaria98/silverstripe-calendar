@@ -2,6 +2,11 @@
 
 namespace Dynamic\Calendar\Task;
 
+use Override;
+use Symfony\Component\Console\Input\InputInterface;
+use SilverStripe\PolyExecution\PolyOutput;
+use Symfony\Component\Console\Command\Command;
+use Exception;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Dev\BuildTask;
@@ -21,12 +26,12 @@ class CarbonRecursionMigrationTask extends BuildTask
     /**
      * @var string
      */
-    protected $title = 'Carbon Recursion Migration';
+    protected string $title = 'Carbon Recursion Migration';
 
     /**
      * @var string
      */
-    protected $description = 'Validates Carbon-based recurring events (migration no longer needed)';
+    protected static string $description = 'Validates Carbon-based recurring events (migration no longer needed)';
 
     /**
      * @var bool
@@ -36,10 +41,10 @@ class CarbonRecursionMigrationTask extends BuildTask
     /**
      * @param HTTPRequest $request
      */
-    public function run($request)
+    #[Override]
+    protected function execute(InputInterface $input, PolyOutput $output): int
     {
         $this->printHeader();
-
         // Check if RecursiveEvent class exists (legacy RRule system)
         if (!class_exists('Dynamic\Calendar\Page\RecursiveEvent')) {
             $this->printMessage(
@@ -64,8 +69,8 @@ class CarbonRecursionMigrationTask extends BuildTask
                 'warning'
             );
         }
-
         $this->printFooter();
+        return Command::SUCCESS;
     }
 
     /**
@@ -75,7 +80,7 @@ class CarbonRecursionMigrationTask extends BuildTask
     {
         $this->printMessage("Validating Carbon-based recurrence patterns...");
 
-        $recurringEvents = EventPage::get()->filter('Recursion:not', 'NONE');
+        $recurringEvents = EventPage::get()->filter(['Recursion:not' => 'NONE']);
         $validCount = 0;
         $invalidCount = 0;
 
@@ -96,7 +101,7 @@ class CarbonRecursionMigrationTask extends BuildTask
                     $invalidCount++;
                     $this->printMessage("✗ No occurrences: {$event->Title}", 'warning');
                 }
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $invalidCount++;
                 $this->printMessage("✗ Error in {$event->Title}: " . $e->getMessage(), 'error');
             }
