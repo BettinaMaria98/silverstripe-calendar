@@ -7,7 +7,7 @@
         </a>
         <% if $eventRecurs %>
           <small class="badge bg-info text-dark ms-2">
-            <i class="bi bi-arrow-repeat"></i> Recurring
+            <i class="bi bi-arrow-repeat"></i> <%t Dynamic\Calendar\Includes\EventCompact.RECURRING 'Recurring' %>
           </small>
         <% end_if %>
       </h5>
@@ -36,7 +36,7 @@
 
     <div class="event-actions ms-3">
       <a href="$Link" class="btn btn-outline-primary btn-sm">
-        View Details
+        <%t Dynamic\Calendar\Includes\EventCompact.VIEW_DETAILS 'View Details' %>
       </a>
     </div>
   </div>

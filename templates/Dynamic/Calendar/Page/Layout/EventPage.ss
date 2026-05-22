@@ -37,7 +37,7 @@
                                             <i class="bi bi-calendar-event" aria-hidden="true"></i>
                                         </div>
                                         <div>
-                                            <h6 class="mb-1 fw-semibold">Date & Time</h6>
+                                            <h6 class="mb-1 fw-semibold"><%t Dynamic\Calendar\Page\EventPage.DATE_TIME_LABEL 'Date & Time' %></h6>
                                             <p class="mb-1">$StartDate.Nice</p>
                                             <% if not $AllDay %><% if $StartTime %>
                                                 <p class="mb-0 text-muted small">
@@ -47,7 +47,7 @@
                                             <% end_if %><% end_if %>
                                             <% if $AllDay %>
                                                 <span class="badge bg-warning text-dark mt-1">
-                                                    <i class="bi bi-sun me-1" aria-hidden="true"></i>All Day
+                                                    <i class="bi bi-sun me-1" aria-hidden="true"></i><%t Dynamic\Calendar\Page\EventPage.ALL_DAY 'All Day' %>
                                                 </span>
                                             <% end_if %>
                                         </div>
@@ -62,7 +62,7 @@
                                                 <i class="bi bi-tags" aria-hidden="true"></i>
                                             </div>
                                             <div>
-                                                <h6 class="mb-1 fw-semibold">Categories</h6>
+                                                <h6 class="mb-1 fw-semibold"><%t Dynamic\Calendar\Page\EventPage.CATEGORIES_LABEL 'Categories' %></h6>
                                                 <div class="d-flex flex-wrap gap-1">
                                                     <% loop $Categories %>
                                                         <span class="badge bg-secondary"
@@ -81,19 +81,19 @@
                             <!-- Action Buttons -->
                             <div class="mt-4 d-flex gap-2 flex-wrap">
                                 <a href="$Parent.Link" class="btn btn-outline-primary">
-                                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Back to Calendar
+                                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i><%t Dynamic\Calendar\Page\EventPage.BACK_TO_CALENDAR 'Back to Calendar' %>
                                 </a>
                                 <button class="btn btn-success js-add-to-calendar"
                                         data-event-title="$Title"
                                         data-event-start-date="$StartDate.Format('yyyyMMdd')"
                                         <% if not $AllDay && $StartTime %>data-event-start-time="$StartTime.Format('HHmmss')"<% end_if %>
                                         data-event-end-date="<% if $EndDate %>$EndDate.Format('yyyyMMdd')<% else %>$StartDate.Format('yyyyMMdd')<% end_if %>"
-                                        <% if not $AllDay && ($EndTime || $StartTime) %>data-event-end-time="<% if $EndTime %>$EndTime.Format('HHmmss')<% else %>$StartTime.Format('HHmmss')<% end_if %>"<% end_if %>
+                                        <% if not $AllDay %><% if $EndTime %>data-event-end-time="$EndTime.Format('HHmmss')"<% else_if $StartTime %>data-event-end-time="$StartTime.Format('HHmmss')"<% end_if %><% end_if %>
                                         data-event-description="<% if $Content %>$Content.Summary(50)<% else %>$Title<% end_if %>"
                                         data-event-location="<% if $LocationName %>$LocationName<% end_if %>"
                                         data-event-all-day="<% if $AllDay %>true<% else %>false<% end_if %>"
                                         type="button">
-                                    <i class="bi bi-calendar-plus me-1" aria-hidden="true"></i>Add to Calendar
+                                    <i class="bi bi-calendar-plus me-1" aria-hidden="true"></i><%t Dynamic\Calendar\Page\EventPage.ADD_TO_CALENDAR 'Add to Calendar' %>
                                 </button>
                             </div>
                         </div>
@@ -105,9 +105,6 @@
                         </div>
                     <% end_if %>
 
-                    <div class="event-share mt-4">
-                        <% include PageShareLinks %>
-                    </div>
                 </article>
 
                 $Form

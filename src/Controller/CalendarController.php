@@ -14,6 +14,7 @@ use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Form\CalendarFilterForm;
+use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\Core\Cache\CacheFactory;
@@ -166,7 +167,7 @@ class CalendarController extends PageController
                     'title' => $event->Title,
                     'start' => $event->StartDate,
                     'allDay' => true, // Default to all day
-                    'url' => $event->AbsoluteLink(),
+                    'url' => Director::absoluteURL($event->Link()),
                     'extendedProps' => [
                         'summary' => $event->Summary ? $event->dbObject('Summary')->Summary(100) : '',
                         'categories' => [],

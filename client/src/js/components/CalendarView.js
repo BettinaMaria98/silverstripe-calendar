@@ -5,7 +5,11 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import bootstrap5Plugin from '@fullcalendar/bootstrap5';
 import interactionPlugin from '@fullcalendar/interaction';
+import deLocale from '@fullcalendar/core/locales/de';
 import { getRollingListWeekView } from './rollingListWeekView';
+
+// Map language codes to FullCalendar locale objects
+const FC_LOCALES = { de: deLocale };
 
 // Shared constants
 const RESIZE_DEBOUNCE_MS = 150;
@@ -20,9 +24,14 @@ export class CalendarView {
       ...options
     };
 
+    // Detect locale from <html lang="..."> (e.g. "de-AT" -> "de")
+    const htmlLang = document.documentElement.lang || 'en';
+    const localeCode = htmlLang.toLowerCase().replace('_', '-').split('-')[0];
+    const fcLocale = FC_LOCALES[localeCode];
     this.options = {
       plugins: [dayGridPlugin, timeGridPlugin, listPlugin, bootstrap5Plugin, interactionPlugin],
       themeSystem: 'bootstrap5',
+      ...(fcLocale ? { locale: fcLocale } : {}),
       headerToolbar: this.getResponsiveHeaderToolbar(),
 
       // Responsive initial view - list on mobile, month on desktop
@@ -220,7 +229,6 @@ export class CalendarView {
 
     if (info.event.extendedProps.isRecurring) {
       element.classList.add('recurring-event');
-      element.title = 'Recurring event';
     }
 
     if (info.event.extendedProps.summary) {

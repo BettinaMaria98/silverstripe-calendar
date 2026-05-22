@@ -3,7 +3,7 @@
     Designed to be used within an external collapse container from main Calendar.ss.
     Requires Bootstrap 5+ for form styling classes.
 --%>
-<form $AttributesHTML class="calendar-filter-form bg-light rounded shadow-sm p-4 mb-4" aria-label="Filter calendar events">
+<form $AttributesHTML class="calendar-filter-form bg-light rounded shadow-sm p-4 mb-4" aria-label="<%t Dynamic\Calendar\Form\CalendarFilterForm.FORM_ARIA 'Filter calendar events' %>">
                     <div class="row g-3">
         <!-- Search Field -->
         <% with $Fields.find('Name', 'search') %>
@@ -73,8 +73,8 @@
         </div>
         <% if $HasActiveFilters && $ClearFiltersLink %>
         <div class="form-actions-secondary">
-            <a href="$ClearFiltersLink.ATT" class="btn btn-outline-secondary btn-sm" role="button" aria-label="Remove all filters and show all events">
-                <i class="bi bi-x-circle me-1"></i>Clear All Filters
+            <a href="$ClearFiltersLink.ATT" class="btn btn-outline-secondary btn-sm" role="button" aria-label="<%t Dynamic\Calendar\Form\CalendarFilterForm.CLEAR_FILTERS_ARIA 'Remove all filters and show all events' %>">
+                <i class="bi bi-x-circle me-1"></i><%t Dynamic\Calendar\Form\CalendarFilterForm.CLEAR_FILTERS_BUTTON 'Clear All Filters' %>
             </a>
         </div>
         <% end_if %>

@@ -31,6 +31,32 @@ de:
     CATEGORY_DEFAULTS_HEADER: 'Standard-Kategorieauswahl'
     DEFAULT_SELECTED_CATEGORIES: 'Vorausgewählte Kategorien'
     DEFAULT_CATEGORIES_EMPTY_DESC: 'Leer lassen, um standardmäßig alle Kategorien anzuzeigen'
+    # Template
+    FILTER_EVENTS_BUTTON: 'Veranstaltungen filtern'
+    SUBSCRIBE_BUTTON: 'Abonnieren'
+    SUBSCRIBE_MODAL_TITLE: 'Kalender abonnieren'
+    SUBSCRIBE_MODAL_INTRO: 'Abonniere den Kalender, um automatische Updates in deiner Kalender-App zu erhalten:'
+    SUBSCRIPTION_URL_LABEL: 'Abonnement-URL:'
+    COPY_URL_BUTTON: 'URL kopieren'
+    HOW_TO_SUBSCRIBE: 'So abonnierst du:'
+    GOOGLE_CALENDAR: 'Google Kalender'
+    GOOGLE_STEP_1: 'Abonnement-URL oben kopieren'
+    GOOGLE_STEP_2: 'Google Kalender öffnen'
+    GOOGLE_STEP_3: 'Links auf das „+" neben „Andere Kalender" klicken'
+    GOOGLE_STEP_4: '„Per URL" auswählen'
+    GOOGLE_STEP_5: 'URL einfügen und auf „Kalender hinzufügen" klicken'
+    MICROSOFT_OUTLOOK: 'Microsoft Outlook'
+    OUTLOOK_STEP_1: 'Abonnement-URL oben kopieren'
+    OUTLOOK_STEP_2: 'Outlook Kalender öffnen'
+    OUTLOOK_STEP_3: 'Auf „Kalender hinzufügen" und dann „Aus dem Internet" klicken'
+    OUTLOOK_STEP_4: 'URL einfügen und auf „OK" klicken'
+    APPLE_CALENDAR: 'Apple Kalender'
+    APPLE_STEP_1: 'Abonnement-URL oben kopieren'
+    APPLE_STEP_2: 'Kalender-App öffnen'
+    APPLE_STEP_3: 'Ablage dann Neues Kalenderabonnement'
+    APPLE_STEP_4: 'URL einfügen und auf „Abonnieren" klicken'
+    CLOSE_BUTTON: 'Schließen'
+    SUBSCRIBE_IN_APP: 'In App abonnieren'
 
   Dynamic\Calendar\Page\EventPage:
     SINGULARNAME: 'Veranstaltung'
@@ -101,6 +127,11 @@ de:
     RECURSION_YEARLY_N: 'Alle {interval} Jahre'
     RECURSION_UNKNOWN: 'Unbekanntes Muster'
     RECURSION_UNTIL: 'bis {date}'
+    # Template
+    DATE_TIME_LABEL: 'Datum & Uhrzeit'
+    CATEGORIES_LABEL: 'Kategorien'
+    BACK_TO_CALENDAR: 'Zurück zum Kalender'
+    ADD_TO_CALENDAR: 'Zum Kalender hinzufügen'
 
   Dynamic\Calendar\Model\Category:
     SINGULARNAME: 'Kategorie'
@@ -224,6 +255,21 @@ de:
     DURATION_TIMED: 'Zeitgebundene Veranstaltungen'
     APPLY_FILTERS_BUTTON: 'Filter anwenden'
     APPLY_FILTERS_TITLE: 'Ausgewählte Filter anwenden'
+    FORM_ARIA: 'Kalenderveranstaltungen filtern'
+    CLEAR_FILTERS_ARIA: 'Alle Filter entfernen und alle Veranstaltungen anzeigen'
+    CLEAR_FILTERS_BUTTON: 'Alle Filter zurücksetzen'
+    CHOICES_PLACEHOLDER: 'Kategorien wählen'
+    CHOICES_NO_OPTIONS: 'Keine Kategorien verfügbar'
+    CHOICES_SELECT_TEXT: 'Zum Auswählen klicken'
+    CHOICES_SEARCH_PLACEHOLDER: 'Kategorien suchen...'
+
+  Dynamic\Calendar\Includes\EventCompact:
+    RECURRING: 'Wiederkehrend'
+    VIEW_DETAILS: 'Details ansehen'
+
+  Dynamic\Calendar\Includes\EventPreview:
+    RECURRING: 'Wiederkehrend'
+    VIEW_DETAILS: 'Details ansehen'
 
   Permissions:
     Permission_CategoryCreate_Permission: 'Kalender - Kategorie erstellen'

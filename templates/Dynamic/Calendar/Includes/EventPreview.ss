@@ -11,7 +11,7 @@
     </h5>
     <% if $eventRecurs %>
       <span class="badge bg-info text-dark">
-        <i class="bi bi-arrow-repeat"></i> Recurring
+        <i class="bi bi-arrow-repeat"></i> <%t Dynamic\Calendar\Includes\EventPreview.RECURRING 'Recurring' %>
       </span>
     <% end_if %>
   </div>
@@ -48,7 +48,7 @@
   </div>
   <div class="card-footer">
     <a href="$Link" class="btn btn-outline-primary btn-sm">
-      <i class="bi bi-eye"></i> View Details
+      <i class="bi bi-eye"></i> <%t Dynamic\Calendar\Includes\EventPreview.VIEW_DETAILS 'View Details' %>
     </a>
   </div>
 </div>

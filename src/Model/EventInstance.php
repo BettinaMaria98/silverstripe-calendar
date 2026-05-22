@@ -7,6 +7,7 @@ use SilverStripe\Model\ModelData;
 use Carbon\Carbon;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Core\Injector\Injectable;
+use SilverStripe\Control\Director;
 use SilverStripe\ORM\FieldType\DBField;
 
 /**
@@ -116,9 +117,9 @@ class EventInstance extends ModelData
     #[Override]
     public function hasField(string $fieldName): bool
     {
-        return isset($this->virtualProperties[$property]) ||
-               ($this->exception && $this->exception->hasOverride($property)) ||
-               $this->originalEvent->hasField($property);
+        return isset($this->virtualProperties[$fieldName]) ||
+            ($this->exception && $this->exception->hasOverride($fieldName)) ||
+            $this->originalEvent->hasField($fieldName);
     }
 
     /**
@@ -284,7 +285,7 @@ class EventInstance extends ModelData
      */
     public function AbsoluteLink($action = null): string
     {
-        return $this->originalEvent->AbsoluteLink($this->Link($action));
+        return Director::absoluteURL($this->Link($action));
     }
 
     /**

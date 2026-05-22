@@ -15,34 +15,31 @@ export class CalendarSubscription {
 
     bindEvents()
     {
-        // Modal shown event to populate subscription URL
+        // Move modal to body to avoid position:fixed issues inside transformed containers
         const modal = document.getElementById('subscribeModal');
-        if (modal) {
-            modal.addEventListener('shown.bs.modal', () => {
-                this.updateSubscribeButton();
-            });
+        if (modal && modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
         }
 
-        // Subscribe in App button click handler
+        // Modal shown event to populate subscription URL
+        if (modal) {
+            modal.addEventListener('shown.bs.modal', () => this.updateSubscribeButton());
+        }
+
+        // Subscribe in App
         document.addEventListener('click', (e) => {
-            if (e.target.matches('.js-subscribe-app')) {
+            if (e.target.closest('.js-subscribe-app')) {
                 e.preventDefault();
                 this.subscribeInApp(e);
             }
         });
 
-        // Copy URL button
+        // Copy URL buttons
         document.addEventListener('click', (e) => {
-            if (e.target.matches('.js-copy-subscription-url')) {
+            const btn = e.target.closest('.js-copy-url, .js-copy-subscription-url');
+            if (btn) {
                 e.preventDefault();
-                this.copyUrl(e);
-            }
-        });
-
-        // Stop accordion toggle events from closing the modal
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#subscribeModal .accordion-button')) {
-                e.stopPropagation();
+                this.copyUrl(btn);
             }
         });
     }
@@ -52,87 +49,65 @@ export class CalendarSubscription {
         const urlInput = document.querySelector('#subscription-url');
         const subscribeButton = document.querySelector('.js-subscribe-app');
 
-        if (!urlInput || !subscribeButton) {
-            return;
-        }
+        if (!urlInput) return;
 
-        // If URL input is empty, generate the subscription URL from the calendar URL
         if (!urlInput.value.trim()) {
             const calendarButton = document.querySelector('.js-subscribe-calendar');
             if (calendarButton) {
                 const calendarUrl = calendarButton.getAttribute('data-calendar-url');
                 if (calendarUrl) {
-                    // Build the full ICS subscription URL using the correct /ical endpoint
-                    let icsUrl;
-                    if (/^https?:\/\//i.test(calendarUrl)) {
-                        icsUrl = `${calendarUrl} / ical`;
-                    } else {
-                        const baseUrl = window.location.origin;
-                        icsUrl = `${baseUrl}${calendarUrl} / ical`;
-                    }
-                    urlInput.value = icsUrl;
+                    const base = /^https?:\/\//i.test(calendarUrl)
+                        ? calendarUrl
+                        : `${window.location.origin}${calendarUrl}`;
+                    urlInput.value = `${base.replace(/\/$/, '')}/ical`;
                 }
             }
         }
 
-        const httpsUrl = urlInput.value;
-        const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://');
-
-        // Store the webcal URL as data attribute for the click handler
-        subscribeButton.setAttribute('data-webcal-url', webcalUrl);
+        if (subscribeButton) {
+            const webcalUrl = urlInput.value.replace(/^https?:\/\//, 'webcal://');
+            subscribeButton.setAttribute('href', webcalUrl);
+            subscribeButton.setAttribute('data-webcal-url', webcalUrl);
+        }
     }
 
-    copyUrl(event)
+    copyUrl(button)
     {
         const input = document.querySelector('#subscription-url');
-        if (!input) {
-            return;
-        }
+        if (!input) return;
 
-        // Try to use the modern Clipboard API
-        const textToCopy = input.value;
-        const button = event.currentTarget;
-        const originalText = button.innerHTML;
+        const originalHtml = button.innerHTML;
+        const showFeedback = () => {
+            button.innerHTML = '<i class="bi bi-check"></i> Kopiert!';
+            setTimeout(() => { button.innerHTML = originalHtml; }, 2000);
+        };
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    button.innerHTML = '<i class="bi bi-check"></i> Copied!';
-                    setTimeout(() => {
-                        button.innerHTML = originalText;
-                    }, 2000);
-                })
-                .catch((err) => {
-                    console.warn('Failed to copy URL:', err);
-                });
+            navigator.clipboard.writeText(input.value)
+                .then(showFeedback)
+                .catch(() => this.copyFallback(input, showFeedback));
         } else {
-            // Fallback for older browsers
-            input.select();
-            input.setSelectionRange(0, 99999);
-            try {
-                document.execCommand('copy');
-                button.innerHTML = '<i class="bi bi-check"></i> Copied!';
-                setTimeout(() => {
-                    button.innerHTML = originalText;
-                }, 2000);
-            } catch (err) {
-                console.warn('Failed to copy URL:', err);
-            }
+            this.copyFallback(input, showFeedback);
         }
     }
 
-    subscribeInApp(event)
+    copyFallback(input, callback)
+    {
+        input.select();
+        input.setSelectionRange(0, 99999);
+        try {
+            document.execCommand('copy');
+            callback();
+        } catch {
+            console.warn('Copy not supported');
+        }
+    }
+
+    subscribeInApp()
     {
         const urlInput = document.querySelector('#subscription-url');
-        if (!urlInput) {
-            return;
-        }
-
-        const httpsUrl = urlInput.value;
-        const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://');
-
-        window.location.href = webcalUrl;
-        event.preventDefault();
+        if (!urlInput) return;
+        window.location.href = urlInput.value.replace(/^https?:\/\//, 'webcal://');
     }
 }
 

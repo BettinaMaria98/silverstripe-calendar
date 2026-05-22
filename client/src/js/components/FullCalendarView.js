@@ -47,6 +47,19 @@ export class FullCalendarView {
             const listPlugin = await import('@fullcalendar/list');
             const interactionPlugin = await import('@fullcalendar/interaction');
 
+          // Detect locale from <html lang="..."> attribute (e.g. "de-AT" -> "de")
+            const htmlLang = document.documentElement.lang || 'en';
+            const localeCode = htmlLang.toLowerCase().replace('_', '-').split('-')[0];
+            let fcLocale = undefined;
+            if (localeCode !== 'en') {
+                try {
+                    const localeModule = await import(`@fullcalendar/core/locales/${localeCode}`);
+                    fcLocale = localeModule.default;
+                } catch {
+                    console.warn(`FullCalendar locale '${localeCode}' not available, using default`);
+                }
+            }
+
           // Configure calendar with plugins
             this.calendar = new Calendar(this.container, {
                 ...this.options,
@@ -56,6 +69,7 @@ export class FullCalendarView {
                 listPlugin.default,
                 interactionPlugin.default
                 ],
+                ...(fcLocale ? { locale: fcLocale } : {}),
                 // Use provided events function if available, otherwise use loadEvents
                 events: this.options.events || this.loadEvents.bind(this)
             });

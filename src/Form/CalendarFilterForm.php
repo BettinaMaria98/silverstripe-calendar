@@ -78,11 +78,11 @@ class CalendarFilterForm extends Form
             'removeItemButton' => true,
             'searchEnabled' => true,
             'searchChoices' => true,
-            'placeholderValue' => 'Choose categories',
-            'noChoicesText' => 'No categories available',
-            'itemSelectText' => 'Press to select',
+            'placeholderValue' => _t('Dynamic\Calendar\Form\CalendarFilterForm.CHOICES_PLACEHOLDER', 'Choose categories'),
+            'noChoicesText' => _t('Dynamic\Calendar\Form\CalendarFilterForm.CHOICES_NO_OPTIONS', 'No categories available'),
+            'itemSelectText' => _t('Dynamic\Calendar\Form\CalendarFilterForm.CHOICES_SELECT_TEXT', 'Press to select'),
             'shouldSort' => false,
-            'searchPlaceholderValue' => 'Search categories...'
+            'searchPlaceholderValue' => _t('Dynamic\Calendar\Form\CalendarFilterForm.CHOICES_SEARCH_PLACEHOLDER', 'Search categories...'),
         ];
 
         Requirements::customScript('
@@ -126,8 +126,8 @@ class CalendarFilterForm extends Form
                         const clearLink = document.createElement("a");
                         clearLink.href = window.location.pathname;
                         clearLink.className = "btn btn-outline-secondary";
-                        clearLink.title = "Remove all filters and show all events";
-                        clearLink.textContent = "Clear All";
+                        clearLink.title = ' . json_encode(_t('Dynamic\Calendar\Form\CalendarFilterForm.CLEAR_FILTERS_ARIA', 'Remove all filters and show all events')) . ';
+                        clearLink.textContent = ' . json_encode(_t('Dynamic\Calendar\Form\CalendarFilterForm.CLEAR_FILTERS_BUTTON', 'Clear All Filters')) . ';
                         actionsDiv.appendChild(clearLink);
                     }
                 }
@@ -138,16 +138,7 @@ class CalendarFilterForm extends Form
                     multiSelectElements.forEach(function(element) {
                         // Only initialize on select elements, not wrapper divs
                         if (element.tagName === "SELECT") {
-                            new Choices(element, {
-                                removeItemButton: true,
-                                searchEnabled: true,
-                                searchChoices: true,
-                                placeholderValue: "Choose categories",
-                                noChoicesText: "No categories available",
-                                itemSelectText: "Press to select",
-                                shouldSort: false,
-                                searchPlaceholderValue: "Search categories..."
-                            });
+                            new Choices(element, window.CalendarChoicesConfig || {});
                         }
                     });
                 } else {
@@ -408,7 +399,9 @@ class CalendarFilterForm extends Form
 
         // All-day filter
         if ($allDay = $request->getVar('allDay')) {
-            $summary['allDay'] = $allDay === '1' ? 'All-Day Events' : 'Timed Events';
+            $summary['allDay'] = $allDay === '1'
+                ? _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_ALL_DAY', 'All-Day Events')
+                : _t('Dynamic\Calendar\Form\CalendarFilterForm.DURATION_TIMED', 'Timed Events');
         }
 
         // Search filter
