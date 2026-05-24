@@ -55,8 +55,8 @@ class EventException extends DataObject implements PermissionProvider
     {
         // Skip validation during fixture loading or testing
         return Director::isDev() ||
-               (defined('SS_ENVIRONMENT_TYPE') && SS_ENVIRONMENT_TYPE === 'test') ||
-               $this->config()->get('skip_validation');
+            (defined('SS_ENVIRONMENT_TYPE') && SS_ENVIRONMENT_TYPE === 'test') ||
+            $this->config()->get('skip_validation');
     }
 
     /**
@@ -166,10 +166,10 @@ class EventException extends DataObject implements PermissionProvider
         $overrideField = $overridableFields[$property];
         $value = $this->$overrideField;
 
-        // For time fields, check if value is explicitly set (not NULL)
+        // For time fields, check if value is explicitly set (not NULL and not empty string)
         // This allows users to intentionally set midnight (00:00:00) as an override
         if (in_array($overrideField, ['ModifiedStartTime', 'ModifiedEndTime'])) {
-            return $value !== null;
+            return $value !== null && $value !== '';
         }
 
         // Check if the override field has a value
@@ -498,9 +498,10 @@ class EventException extends DataObject implements PermissionProvider
         $instanceOptions = [];
 
         if ($originalEvent && $originalEvent->exists() && $originalEvent->eventRecurs()) {
-            // Get future instances for the next 12 months
-            $endDate = new DateTime('+12 months');
-            $instances = $originalEvent->getOccurrences(new DateTime(), $endDate);
+            // Get all instances from event start date up to 24 months in the future
+            $startDate = $originalEvent->StartDate ? new DateTime($originalEvent->StartDate) : new DateTime('-12 months');
+            $endDate = new DateTime('+24 months');
+            $instances = $originalEvent->getOccurrences($startDate, $endDate);
 
             foreach ($instances as $instance) {
                 $instanceDate = $instance->getInstanceDate();

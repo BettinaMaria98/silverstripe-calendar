@@ -44,31 +44,27 @@ class EventInstance extends ModelData
      */
     protected function calculateVirtualProperties(): void
     {
+        $tz = \Dynamic\Calendar\Controller\CalendarController::config()->get('timezone') ?: date_default_timezone_get();
+        $localDate = $this->instanceDate->copy()->setTimezone($tz);
+        $localDateStr = $localDate->format('Y-m-d');
+
         $originalStart = Carbon::parse($this->originalEvent->StartDate);
         $daysDifference = $originalStart->diffInDays($this->instanceDate);
 
-        // Calculate start date/time for this instance
-        $this->virtualProperties['StartDate'] = $this->instanceDate->format('Y-m-d');
+        $this->virtualProperties['StartDate'] = $localDateStr;
         $this->virtualProperties['StartTime'] = $this->originalEvent->StartTime;
 
-        // Calculate end date/time
         if ($this->originalEvent->EndDate) {
             $originalEnd = Carbon::parse($this->originalEvent->EndDate);
             $durationDays = $originalStart->diffInDays($originalEnd);
-            $this->virtualProperties['EndDate'] = $this->instanceDate->copy()->addDays($durationDays)->format('Y-m-d');
+            $this->virtualProperties['EndDate'] = $localDate->copy()->addDays($durationDays)->format('Y-m-d');
         } else {
-            $this->virtualProperties['EndDate'] = $this->virtualProperties['StartDate'];
+            $this->virtualProperties['EndDate'] = $localDateStr;
         }
 
         $this->virtualProperties['EndTime'] = $this->originalEvent->EndTime;
-
-        // Generate a virtual ID for consistency
-        $this->virtualProperties['ID'] = 'virtual_' . $this->originalEvent->ID . '_' .
-            $this->instanceDate->format('Y-m-d');
-
-        // Generate virtual URL segment
-        $this->virtualProperties['URLSegment'] = $this->originalEvent->URLSegment . '-' .
-            $this->instanceDate->format('Y-m-d');
+        $this->virtualProperties['ID'] = 'virtual_' . $this->originalEvent->ID . '_' . $localDateStr;
+        $this->virtualProperties['URLSegment'] = $this->originalEvent->URLSegment . '-' . $localDateStr;
     }
 
     /**
@@ -270,9 +266,10 @@ class EventInstance extends ModelData
     {
         $link = $this->originalEvent->Link($action);
 
-        // Add instance date parameter to distinguish this occurrence
+        // Add instance date parameter — use configured timezone so the date matches what is stored in EventException::InstanceDate
+        $tz = \Dynamic\Calendar\Controller\CalendarController::config()->get('timezone') ?: date_default_timezone_get();
         $separator = str_contains($link, '?') ? '&' : '?';
-        $link .= $separator . 'instance=' . $this->instanceDate->format('Y-m-d');
+        $link .= $separator . 'instance=' . $this->instanceDate->copy()->setTimezone($tz)->format('Y-m-d');
 
         return $link;
     }
@@ -295,6 +292,7 @@ class EventInstance extends ModelData
      */
     public function toArray(): array
     {
+        $tz = \Dynamic\Calendar\Controller\CalendarController::config()->get('timezone') ?: date_default_timezone_get();
         return [
             'ID' => $this->ID,
             'Title' => $this->Title,
@@ -309,6 +307,7 @@ class EventInstance extends ModelData
             'IsModified' => $this->isModified(),
             'IsDeleted' => $this->isDeleted(),
             'OriginalEventID' => $this->originalEvent->ID,
+            'OriginalInstanceDate' => $this->instanceDate->copy()->setTimezone($tz)->format('Y-m-d'),
         ];
     }
 
@@ -330,15 +329,16 @@ class EventInstance extends ModelData
             return null;
         }
 
-        // Parse the instance date
-        $instanceDate = Carbon::parse($data['StartDate']);
+        // Use the original occurrence date (not potentially-modified StartDate) for instanceDate and exception lookup
+        $instanceDateStr = $data['OriginalInstanceDate'] ?? $data['StartDate'];
+        $instanceDate = Carbon::parse($instanceDateStr);
 
         // Get any exception for this date (if modified/deleted)
         $exception = null;
         if ($data['IsModified'] || $data['IsDeleted']) {
             $exception = EventException::get()->filter([
                 'OriginalEventID' => $originalEvent->ID,
-                'InstanceDate' => $data['StartDate']
+                'InstanceDate' => $instanceDateStr,
             ])->first();
         }
 

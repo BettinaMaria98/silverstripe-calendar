@@ -105,6 +105,14 @@ class EventInstanceCache
     }
 
     /**
+     * Called automatically by SilverStripe on ?flush=1
+     */
+    public static function flush(): void
+    {
+        self::clearAllCache();
+    }
+
+    /**
      * Generate a consistent cache key
      */
     private static function generateCacheKey(EventPage $event, string $start, string $end): string

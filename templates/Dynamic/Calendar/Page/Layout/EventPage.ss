@@ -39,10 +39,10 @@
                                         <div>
                                             <h6 class="mb-1 fw-semibold"><%t Dynamic\Calendar\Page\EventPage.DATE_TIME_LABEL 'Date & Time' %></h6>
                                             <p class="mb-1">$StartDate.Nice</p>
-                                            <% if not $AllDay %><% if $StartTime %>
+                                            <% if not $AllDay %><% if $FormattedStartTime %>
                                                 <p class="mb-0 text-muted small">
                                                     <i class="bi bi-clock me-1" aria-hidden="true"></i>
-                                                    $StartTime.Format('h:mm a')<% if $EndTime %> - $EndTime.Format('h:mm a')<% end_if %>
+                                                    $FormattedStartTime<% if $TimeSuffix %> $TimeSuffix<% end_if %><% if $FormattedEndTime %> – $FormattedEndTime<% if $TimeSuffix %> $TimeSuffix<% end_if %><% end_if %>
                                                 </p>
                                             <% end_if %><% end_if %>
                                             <% if $AllDay %>
@@ -67,7 +67,7 @@
                                                     <% loop $Categories %>
                                                         <span class="badge bg-secondary"
                                                             <% if $ValidatedColor %>
-                                                                style="background-color: $ValidatedColor !important;"
+                                                              style="background-color: $ValidatedColor !important;"
                                                             <% end_if %>
                                                         >$Title</span>
                                                     <% end_loop %>
@@ -88,7 +88,7 @@
                                         data-event-start-date="$StartDate.Format('yyyyMMdd')"
                                         <% if not $AllDay && $StartTime %>data-event-start-time="$StartTime.Format('HHmmss')"<% end_if %>
                                         data-event-end-date="<% if $EndDate %>$EndDate.Format('yyyyMMdd')<% else %>$StartDate.Format('yyyyMMdd')<% end_if %>"
-                                        <% if not $AllDay %><% if $EndTime %>data-event-end-time="$EndTime.Format('HHmmss')"<% else_if $StartTime %>data-event-end-time="$StartTime.Format('HHmmss')"<% end_if %><% end_if %>
+                                    <% if not $AllDay %><% if $EndTime %>data-event-end-time="$EndTime.Format('HHmmss')"<% else_if $StartTime %>data-event-end-time="$StartTime.Format('HHmmss')"<% end_if %><% end_if %>
                                         data-event-description="<% if $Content %>$Content.Summary(50)<% else %>$Title<% end_if %>"
                                         data-event-location="<% if $LocationName %>$LocationName<% end_if %>"
                                         data-event-all-day="<% if $AllDay %>true<% else %>false<% end_if %>"

@@ -348,8 +348,9 @@ class Calendar extends Page
                 $exceptionsByDate[$exception->InstanceDate] = $exception;
             }
 
+            $tz = CalendarController::config()->get('timezone') ?: date_default_timezone_get();
             foreach ($occurrences as $occurrence) {
-                $instanceDate = $occurrence->getInstanceDate()->format('Y-m-d');
+                $instanceDate = $occurrence->getInstanceDate()->copy()->setTimezone($tz)->format('Y-m-d');
 
                 // Check if this instance has an exception
                 if (isset($exceptionsByDate[$instanceDate])) {
