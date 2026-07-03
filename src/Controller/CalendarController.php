@@ -197,7 +197,7 @@ class CalendarController extends PageController
                 $eventData = [
                     'id' => $event->ID,
                     'title' => $event->Title,
-                    'start' => $event->StartDate,
+                    'start' => (string) $event->StartDate,
                     'allDay' => true, // Default to all day
                     'url' => Director::absoluteURL($event->Link()),
                     'extendedProps' => [
@@ -216,7 +216,10 @@ class CalendarController extends PageController
                 if ($event->EndDate && $event->EndTime) {
                     $eventData['end'] = $event->EndDate . 'T' . $event->EndTime;
                 } elseif ($event->EndDate) {
-                    $eventData['end'] = $event->EndDate;
+                    // FullCalendar end date for all-day events is exclusive — add 1 day
+                    $eventData['end'] = $eventData['allDay']
+                        ? Carbon::parse($event->EndDate)->addDay()->format('Y-m-d')
+                        : (string) $event->EndDate;
                 }
 
                 // Add category information with colors
@@ -631,7 +634,7 @@ class CalendarController extends PageController
                 $ics[] = 'LOCATION:' . $this->escapeICSValue($event->Location);
             }
 
-                        // Handle dates and times
+            // Handle dates and times
             if ($event->AllDay) {
                 // All-day event
                 $ics[] = 'DTSTART;VALUE=DATE:' . str_replace('-', '', $event->StartDate);
