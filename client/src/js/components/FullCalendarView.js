@@ -253,32 +253,29 @@ export class FullCalendarView {
         return classes.join(' ');
     }
 
+    isPastEvent(event)
+    {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const endDate = event.end ? new Date(event.end) : new Date(event.start);
+        endDate.setHours(0, 0, 0, 0);
+        return endDate < now;
+    }
+
     styleEvent(info)
     {
         const event = info.event;
         const element = info.el;
 
-      // Add Bootstrap classes
-        element.classList.add('border-0', 'rounded');
-
-      // Add category-specific styling
-        const category = event.extendedProps.category;
-        if (category) {
-            const categoryClass = `bg - ${this.getCategoryColor(category)}`;
-            element.classList.add(categoryClass);
+        // Mark past events
+        if (this.isPastEvent(event)) {
+            element.classList.add('fc-event-past');
         }
 
       // Add accessibility attributes
         element.setAttribute('role', 'button');
         element.setAttribute('tabindex', '0');
         element.setAttribute('aria-label', `Event: ${event.title}`);
-
-      // Add tooltip for description
-        if (event.extendedProps.description) {
-            element.setAttribute('title', this.stripHtml(event.extendedProps.description));
-            element.setAttribute('data-bs-toggle', 'tooltip');
-            element.setAttribute('data-bs-placement', 'top');
-        }
     }
 
     getCategoryColor(category)
@@ -304,18 +301,14 @@ export class FullCalendarView {
 
         const event = info.event;
 
-      // Emit custom event for other components
-        this.container.dispatchEvent(new CustomEvent('calendar:eventClick', {
-            detail: {
-                event: event,
-                originalEvent: event.extendedProps.originalEvent,
-                jsEvent: info.jsEvent
-            }
-        }));
+        // Do nothing for past events
+        if (this.isPastEvent(event)) {
+            return;
+        }
 
-      // Show event details modal or navigate to event page
+        // Navigate to event page
         if (event.url) {
-            this.showEventModal(event);
+            window.location.href = event.url;
         }
     }
 
@@ -507,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const calendarContainers = document.querySelectorAll('.fullcalendar-view');
 
     calendarContainers.forEach(container => {
-        if (!container.dataset.initialized) {
+        if (!container.dataset.initialized && !container.dataset.fcInitialized) {
             new FullCalendarView(container);
             container.dataset.initialized = 'true';
         }

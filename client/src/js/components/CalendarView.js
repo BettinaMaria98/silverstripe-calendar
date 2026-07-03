@@ -28,14 +28,19 @@ export class CalendarView {
     const htmlLang = document.documentElement.lang || 'en';
     const localeCode = htmlLang.toLowerCase().replace('_', '-').split('-')[0];
     const fcLocale = FC_LOCALES[localeCode];
+    // If a 'from' filter is set in the URL, start the calendar there
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromParam = urlParams.get('from');
+
     this.options = {
       plugins: [dayGridPlugin, timeGridPlugin, listPlugin, bootstrap5Plugin, interactionPlugin],
       themeSystem: 'bootstrap5',
       ...(fcLocale ? { locale: fcLocale } : {}),
       headerToolbar: this.getResponsiveHeaderToolbar(),
 
-      // Responsive initial view - list on mobile, month on desktop
-      initialView: this.config.defaultView || (window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth'),
+      // Responsive initial view - month on all screen sizes (no listWeek by default)
+      initialView: this.config.defaultView || 'dayGridMonth',
+      ...(fromParam ? { initialDate: fromParam } : {}),
 
       height: 'auto',
       aspectRatio: 1.8,
@@ -46,6 +51,11 @@ export class CalendarView {
         listWeek: getRollingListWeekView()
       },
 
+      // Block navigation to past months
+      validRange: {
+        start: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      },
+
       // Window resize handling for responsive behavior
       windowResizeDelay: 150
     };
@@ -54,7 +64,11 @@ export class CalendarView {
   }
 
   init() {
-    // Merge FullCalendar options only (exclude custom config)
+    // Initialise before render() — datesSet fires synchronously during render
+    this._viewStart = null;
+    this._viewEnd   = null;
+    this._viewTitle = '';
+
     const finalOptions = {
       ...this.options,
       events: (info, successCallback, failureCallback) => {
@@ -62,26 +76,24 @@ export class CalendarView {
       },
       eventClick: (info) => this.handleEventClick(info),
       dateClick: (info) => this.handleDateClick(info),
-      eventDidMount: (info) => this.handleEventDidMount(info)
+      eventDidMount: (info) => this.handleEventDidMount(info),
+      datesSet: (info) => this.handleDatesSet(info),
+      eventsSet: (events) => this.handleEventsSet(events),
     };
 
-    // Initialize FullCalendar
     this.calendar = new Calendar(this.element, finalOptions);
     this.calendar.render();
 
-    // Store reference globally for debugging in development mode
     if (process.env.NODE_ENV === 'development') {
       window.fullCalendarInstance = this.calendar;
     }
 
-    // Initialize mobile optimizations
     this.initializeMobileOptimizations();
   }
 
   getConfigFromElement() {
     const config = {};
 
-    // Read configuration from data attributes
     if (this.element.dataset.calendarId) {
       config.calendarId = this.element.dataset.calendarId;
     }
@@ -92,6 +104,10 @@ export class CalendarView {
 
     if (this.element.dataset.eventsUrl) {
       config.eventsUrl = this.element.dataset.eventsUrl;
+    }
+
+    if (this.element.dataset.availableViews) {
+      config.availableViews = this.element.dataset.availableViews.split(',').map(v => v.trim()).filter(Boolean);
     }
 
     return config;
@@ -112,13 +128,16 @@ export class CalendarView {
       format: 'json'
     });
 
-    // Add any active filters
-    const activeFilters = this.getActiveFilters();
-    Object.entries(activeFilters).forEach(([key, value]) => {
-      if (value && key !== 'action_doFilter') {
-        params.append(key, value);
+    // Forward filter form values — iterate FormData directly to handle multi-select correctly
+    const filterForm = document.querySelector('.calendar-filter-form');
+    if (filterForm) {
+      const skip = new Set(['action_doFilter', 'SecurityID', 'advanced']);
+      for (const [key, value] of new FormData(filterForm).entries()) {
+        if (value && !skip.has(key)) {
+          params.append(key, value);
+        }
       }
-    });
+    }
 
     try {
       const response = await fetch(`${eventsUrl}?${params.toString()}`, {
@@ -133,9 +152,7 @@ export class CalendarView {
       }
 
       const events = await response.json();
-      console.log('Fetched events:', events);
 
-      // Events should be an array directly from the server
       if (Array.isArray(events)) {
         successCallback(events);
       } else {
@@ -148,151 +165,150 @@ export class CalendarView {
     }
   }
 
-  transformEvents(events) {
-    return events.map(event => ({
-      id: event.ID,
-      title: event.Title,
-      start: event.StartDate + (event.StartTime ? 'T' + event.StartTime : ''),
-      end: event.EndDate && event.EndTime ? event.EndDate + 'T' + event.EndTime : null,
-      allDay: event.AllDay || (!event.StartTime && !event.EndTime),
-      url: event.Link,
-      extendedProps: {
-        summary: event.Summary,
-        categories: event.Categories,
-        isRecurring: event.Recursion !== 'NONE'
-      },
-      backgroundColor: this.getCategoryColor(event.Categories),
-      borderColor: this.getCategoryColor(event.Categories)
-    }));
-  }
-
-  getCategoryColor(categories) {
-    // Simple color assignment based on first category
-    if (!categories || categories.length === 0) return '#6c757d'; // Bootstrap secondary
-
-    const colors = {
-      'worship': '#0d6efd',     // Bootstrap primary
-      'education': '#198754',    // Bootstrap success
-      'fellowship': '#fd7e14',   // Bootstrap warning
-      'service': '#dc3545',      // Bootstrap danger
-      'music': '#6f42c1',        // Bootstrap purple
-      'youth': '#20c997'         // Bootstrap teal
-    };
-
-    const firstCategory = categories[0].Title.toLowerCase();
-    return colors[firstCategory] || '#6c757d';
-  }
-
   getActiveFilters() {
     const filters = {};
-
-    // Get filters from form elements
-    const filterForm = document.querySelector('#CalendarFilterForm_FilterForm');
+    const filterForm = document.querySelector('.calendar-filter-form');
     if (filterForm) {
       const formData = new FormData(filterForm);
       for (let [key, value] of formData.entries()) {
-        filters[key] = value;
+        if (key !== 'action_doFilter' && key !== 'SecurityID' && key !== 'advanced') {
+          filters[key] = value;
+        }
       }
     }
-
     return filters;
   }
 
   handleEventClick(info) {
     info.jsEvent.preventDefault();
-
-    // Custom event click handling
     const event = info.event;
-
     if (event.url) {
-      // Open event detail page in same window
       window.location.href = event.url;
     } else {
-      // Show event popup/modal
       this.showEventPopup(event);
     }
   }
 
   handleDateClick(info) {
-    // Handle date clicks (could open "add event" interface)
-    console.log('Date clicked:', info.dateStr);
-
-    // Example: Navigate to date-specific view
     const url = new URL(window.location);
     url.searchParams.set('date', info.dateStr);
     window.history.pushState({}, '', url);
   }
 
   handleEventDidMount(info) {
-    // Add tooltips or other enhancements when events are rendered
     const element = info.el;
-
     if (info.event.extendedProps.isRecurring) {
       element.classList.add('recurring-event');
     }
-
     if (info.event.extendedProps.summary) {
       element.title = info.event.extendedProps.summary;
     }
   }
 
+  // datesSet fires first — store the range and title so eventsSet can filter correctly
+  handleDatesSet(info) {
+    this._viewStart = info.start;
+    this._viewEnd   = info.end;
+    this._viewTitle = info.view.title;
+
+    const titleEl = this.getListContainer()?.querySelector('.js-cal-list-title');
+    if (titleEl) titleEl.textContent = this._viewTitle;
+  }
+
+  // eventsSet fires after events are loaded — filter to the stored view range
+  handleEventsSet(events) {
+    if (!this._viewStart || !this._viewEnd) return;
+
+    const visibleEvents = events
+      .filter(e => e.start && e.start >= this._viewStart && e.start < this._viewEnd)
+      .sort((a, b) => a.start - b.start);
+
+    this.renderList(visibleEvents);
+  }
+
+  getListContainer() {
+    return this.element.closest('.calendar-split')?.querySelector('.calendar-split__list') ?? null;
+  }
+
+  escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str ?? '');
+    return div.innerHTML;
+  }
+
+  renderList(events) {
+    const listEl = this.getListContainer()?.querySelector('.js-cal-event-list');
+    if (!listEl) return;
+
+    if (events.length === 0) {
+      listEl.innerHTML = '<li class="cal-event-list__empty">Keine Veranstaltungen.</li>';
+      return;
+    }
+
+    const locale = (document.documentElement.lang || 'de-AT').replace('_', '-');
+
+    listEl.innerHTML = events.map(event => {
+      const dateStr = event.start.toLocaleDateString(locale, {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+      const timeStr = event.allDay
+        ? ''
+        : event.start.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+      const dateLine = timeStr ? `${dateStr} &middot; ${timeStr}` : dateStr;
+      const href = event.url ? this.escapeHtml(event.url) : '#';
+
+      return `<li class="cal-event-list__item">
+        <a href="${href}" class="cal-event-list__link">
+          <span class="cal-event-list__date">${dateLine}</span>
+          <span class="cal-event-list__title">${this.escapeHtml(event.title)}</span>
+        </a>
+      </li>`;
+    }).join('');
+  }
+
   getResponsiveHeaderToolbar() {
-    // Check screen size for responsive header layout
+    const views = this.config.availableViews ?? ['dayGridMonth', 'timeGridWeek', 'listWeek'];
+    const viewsStr = views.join(',');
     const isSmallScreen = window.innerWidth < 768;
-    const isTablet = window.innerWidth >= 768 && window.innerWidth < 1200;
 
     if (isSmallScreen) {
-      // Mobile (< md breakpoint): Only list view available for better mobile experience
+      // On mobile use the first available view
       return {
         left: 'prev,next',
         center: 'title',
-        right: 'listWeek'
-      };
-    } else if (isTablet) {
-      // Tablet (md to lg): All views with today button
-      return {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,listWeek'
-      };
-    } else {
-      // Desktop (>= lg): Full single-row layout with all views
-      return {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,listWeek'
+        right: views[0] ?? 'dayGridMonth'
       };
     }
+
+    return {
+      left: 'prev,next today',
+      center: 'title',
+      right: viewsStr
+    };
   }
 
   initializeMobileOptimizations() {
-    // Handle responsive view switching on resize
     let resizeTimeout;
     let currentBreakpoint = this.getCurrentBreakpoint();
 
-    // Store handler reference for cleanup
     this.resizeHandler = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(() => {
         const newBreakpoint = this.getCurrentBreakpoint();
 
-        // Only update if breakpoint changed to avoid unnecessary re-renders
         if (newBreakpoint !== currentBreakpoint) {
           currentBreakpoint = newBreakpoint;
-
-          // Update header toolbar for optimal layout
           this.calendar.setOption('headerToolbar', this.getResponsiveHeaderToolbar());
 
-          // Force list view on mobile if currently in month/week view
           if (newBreakpoint === 'mobile') {
+            const views = this.config.availableViews ?? ['dayGridMonth'];
             const currentView = this.calendar.view.type;
             if (currentView === 'dayGridMonth' || currentView === 'timeGridWeek') {
-              this.calendar.changeView('listWeek');
+              this.calendar.changeView(views[0] ?? 'dayGridMonth');
             }
           }
         }
 
-        // Always update calendar size
         this.calendar.updateSize();
       }, RESIZE_DEBOUNCE_MS);
     };
@@ -308,7 +324,6 @@ export class CalendarView {
   }
 
   showEventPopup(event) {
-    // Simple event popup - could be enhanced with Bootstrap modal
     const popup = document.createElement('div');
     popup.className = 'event-popup position-fixed';
     popup.style.cssText = `
@@ -320,19 +335,18 @@ export class CalendarView {
 
     popup.innerHTML = `
       <div class="d-flex justify-content-between align-items-start mb-2">
-        <h5 class="mb-0">${event.title}</h5>
+        <h5 class="mb-0">${this.escapeHtml(event.title)}</h5>
         <button type="button" class="btn-close" onclick="this.closest('.event-popup').remove()"></button>
       </div>
       <p class="text-muted mb-2">
         <i class="bi bi-calendar"></i> ${event.start.toLocaleDateString()}
         ${event.start.toLocaleTimeString()}
       </p>
-      ${event.extendedProps.summary ? `<p>${event.extendedProps.summary}</p>` : ''}
+      ${event.extendedProps.summary ? `<p>${this.escapeHtml(event.extendedProps.summary)}</p>` : ''}
     `;
 
     document.body.appendChild(popup);
 
-    // Add backdrop
     const backdrop = document.createElement('div');
     backdrop.className = 'position-fixed';
     backdrop.style.cssText = 'top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1059;';
@@ -348,7 +362,7 @@ export class CalendarView {
       window.removeEventListener('resize', this.resizeHandler);
       this.resizeHandler = null;
     }
-    
+
     if (this.calendar) {
       this.calendar.destroy();
       this.calendar = null;

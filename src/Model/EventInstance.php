@@ -78,7 +78,14 @@ class EventInstance extends ModelData
     {
         // Check if there's an exception override for this property
         if ($this->exception && $this->exception->hasOverride($property)) {
-            return $this->exception->getOverride($property);
+            $value = $this->exception->getOverride($property);
+            if (in_array($property, ['StartDate', 'EndDate']) && $value) {
+                return DBField::create_field('Date', $value);
+            }
+            if (in_array($property, ['StartTime', 'EndTime']) && $value) {
+                return DBField::create_field('Time', $value);
+            }
+            return $value;
         }
 
         // Check for virtual properties

@@ -89,19 +89,22 @@ class CalendarModule {
     const calendarElement = document.querySelector('#fullcalendar');
     const fullCalendarSection = document.querySelector('#fullcalendar-view');
 
-    if (calendarElement && fullCalendarSection) {
-      // Get configuration from the parent container
+    if (calendarElement && fullCalendarSection && !calendarElement.dataset.fcInitialized) {
+      calendarElement.dataset.fcInitialized = 'true';
+
       const eventsUrl = fullCalendarSection.dataset.eventsUrl;
       const calendarId = fullCalendarSection.dataset.calendarId;
-
-      console.log('Initializing FullCalendar with events URL:', eventsUrl);
+      const availableViewsRaw = fullCalendarSection.dataset.availableViews;
+      const availableViews = availableViewsRaw
+        ? availableViewsRaw.split(',').map(v => v.trim()).filter(Boolean)
+        : undefined;
 
       try {
         this.calendarView = new CalendarView(calendarElement, {
           eventsUrl: eventsUrl,
-          calendarId: calendarId
+          calendarId: calendarId,
+          ...(availableViews ? { availableViews } : {})
         });
-        console.log('FullCalendar initialized successfully');
       } catch (error) {
         console.error('Failed to initialize FullCalendar:', error);
       }

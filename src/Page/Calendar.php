@@ -273,7 +273,7 @@ class Calendar extends Page
      * @param Carbon|string|null $toDate End date for events (default: 6 months from now)
      * @return ArrayList
      */
-    public function getEventsFeed(?int $limit = null, $categories = null, $fromDate = null, $toDate = null): ArrayList
+    public function getEventsFeed(?int $limit = null, $categories = null, $fromDate = null, $toDate = null, ?string $search = null): ArrayList
     {
         // Parse dates - date filtering is only applied if date parameters are provided
         $fromDate = $fromDate ? Carbon::parse($fromDate) : null;
@@ -297,6 +297,10 @@ class Calendar extends Page
         }
 
         $regularEvents = EventPage::get()->filter($regularEventsFilter);
+
+        if ($search) {
+            $regularEvents = $regularEvents->filter(['Title:PartialMatch' => $search]);
+        }
 
         // Only apply date filtering if dates were explicitly provided
         if ($applyDateFilter) {
@@ -326,6 +330,10 @@ class Calendar extends Page
 
         $recurringEvents = EventPage::get()
             ->filter($recurringEventsFilter)->exclude(['Recursion' => 'NONE']);
+
+        if ($search) {
+            $recurringEvents = $recurringEvents->filter(['Title:PartialMatch' => $search]);
+        }
 
         // Retrieve the recurring window years config value once before the loop for performance
         $windowYears = $this->config()->get('default_recurring_window_years')

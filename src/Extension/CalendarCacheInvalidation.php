@@ -30,7 +30,7 @@ trait CalendarCacheInvalidation
         // Get the cache factory and create cache with same parameters as CalendarController
         $cacheFactory = Injector::inst()->get(CacheFactory::class);
         $cache = $cacheFactory->create(
-            'CalendarJSON',
+            'CalendarJSON_v2',
             ['defaultLifetime' => 1800]
         );
 

@@ -9,6 +9,8 @@ use Exception;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
 use SilverStripe\i18n\i18n;
+use SilverStripe\Model\ArrayData;
+use SilverStripe\Model\List\ArrayList;
 use SilverStripe\ORM\FieldType\DBField;
 
 /**
@@ -36,13 +38,27 @@ class EventPageController extends PageController
         }
         $this->instanceLoaded = true;
         $instanceDate = $this->getRequest()->getVar('instance');
-        if ($instanceDate && $this->dataRecord->eventRecurs()) {
-            $this->instanceDate = $instanceDate;
-            $this->currentException = EventException::get()->filter([
-                'OriginalEventID' => $this->dataRecord->ID,
-                'InstanceDate'    => $instanceDate,
-            ])->first();
+        if (!$instanceDate || !$this->dataRecord->eventRecurs()) {
+            return;
         }
+
+        // Validate that this date corresponds to a real, non-deleted occurrence
+        $isValid = false;
+        foreach ($this->dataRecord->getOccurrences($instanceDate, $instanceDate) as $instance) {
+            if (!$instance->isDeleted()) {
+                $isValid = true;
+            }
+            break;
+        }
+        if (!$isValid) {
+            return;
+        }
+
+        $this->instanceDate = $instanceDate;
+        $this->currentException = EventException::get()->filter([
+            'OriginalEventID' => $this->dataRecord->ID,
+            'InstanceDate'    => $instanceDate,
+        ])->first();
     }
 
     /**
@@ -75,7 +91,95 @@ class EventPageController extends PageController
         if ($this->currentException?->hasOverride('EndDate')) {
             return DBField::create_field('Date', $this->currentException->getOverride('EndDate'));
         }
+        if ($this->instanceDate) {
+            $originalStart = Carbon::parse($this->dataRecord->StartDate);
+            $originalEnd = $this->dataRecord->EndDate
+                ? Carbon::parse($this->dataRecord->EndDate)
+                : $originalStart;
+            $durationDays = (int) $originalStart->diffInDays($originalEnd);
+            return DBField::create_field('Date', Carbon::parse($this->instanceDate)->addDays($durationDays)->format('Y-m-d'));
+        }
         return $this->dataRecord->dbObject('EndDate');
+    }
+
+    public function IsViewingInstance(): bool
+    {
+        $this->loadInstance();
+        return $this->instanceDate !== null;
+    }
+
+    public function IsPastInstance(): bool
+    {
+        $this->loadInstance();
+        if ($this->instanceDate === null) {
+            return false;
+        }
+        // Use the displayed start date (respects exception overrides), not the raw instance lookup date
+        $displayedDate = $this->StartDate();
+        return Carbon::parse((string) $displayedDate)->lt(Carbon::today());
+    }
+
+    private ?ArrayList $allOccurrencesCache = null;
+
+    private function buildAllOccurrences(): ArrayList
+    {
+        if ($this->allOccurrencesCache !== null) {
+            return $this->allOccurrencesCache;
+        }
+
+        $this->loadInstance();
+        $owner = $this->dataRecord;
+
+        if (!$owner->eventRecurs() || !$owner->usesCarbonRecursion()) {
+            return $this->allOccurrencesCache = ArrayList::create();
+        }
+
+        $now = Carbon::today();
+        $seriesStart = Carbon::parse($owner->StartDate);
+        $future = $now->copy()->addMonths(12);
+
+        $results = ArrayList::create();
+        foreach ($owner->getOccurrences($seriesStart, $future) as $instance) {
+            if ($instance->isDeleted()) {
+                continue;
+            }
+
+            $originalDate = $instance->getInstanceDate()->format('Y-m-d');
+            $isCurrent = $this->instanceDate === $originalDate;
+            $isPast = Carbon::parse((string) $instance->StartDate)->lt($now);
+
+            $results->push(ArrayData::create([
+                'StartDate' => $instance->StartDate,
+                'StartTime' => $instance->StartTime,
+                'EndDate'   => $instance->EndDate,
+                'EndTime'   => $instance->EndTime,
+                'Link'      => $instance->Link(),
+                'IsCurrent' => $isCurrent,
+                'IsPast'    => $isPast,
+            ]));
+        }
+
+        return $this->allOccurrencesCache = $results;
+    }
+
+    public function AllOccurrences(): ArrayList
+    {
+        return $this->buildAllOccurrences();
+    }
+
+    public function UpcomingOccurrencesList(): ArrayList
+    {
+        return $this->buildAllOccurrences()->filterByCallback(
+            fn($item) => !$item->IsPast
+        );
+    }
+
+    public function PastOccurrencesList(): ArrayList
+    {
+        $past = $this->buildAllOccurrences()->filterByCallback(
+            fn($item) => $item->IsPast
+        );
+        return ArrayList::create(array_reverse($past->toArray()));
     }
 
     public function FormattedStartTime(): string

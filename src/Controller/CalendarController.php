@@ -70,6 +70,23 @@ class CalendarController extends PageController
     private static string $timezone = 'UTC';
 
     /**
+     * FullCalendar views available in the toolbar.
+     * Override per-project via YAML config.
+     *
+     * @var array
+     */
+    private static array $available_views = [];
+
+    /**
+     * Returns available views as a comma-separated string for the template data attribute.
+     */
+    public function getAvailableViews(): string
+    {
+        $views = $this->config()->get('available_views') ?: ['dayGridMonth', 'timeGridWeek', 'listWeek'];
+        return implode(',', array_unique($views));
+    }
+
+    /**
      * @var bool
      */
     protected bool $useDefaultFilter = false;
@@ -121,8 +138,16 @@ class CalendarController extends PageController
      */
     public function events(HTTPRequest $request)
     {
-        // Check cache for JSON responses first
-        if ($this->isAjaxRequest($request)) {
+        // User-applied filters (search, from/to date range, categories) are volatile per-request
+        // states — skip the cache when any are present to avoid stale filtered results being
+        // returned after filters are cleared or changed.
+        $hasUserFilters = $request->getVar('search')
+            || $request->getVar('from')
+            || $request->getVar('to')
+            || $request->getVar('categories');
+
+        // Check cache for JSON responses first (view-range-only requests only)
+        if ($this->isAjaxRequest($request) && !$hasUserFilters) {
             $cacheKey = $this->generateEventsCacheKey($request);
             $cache = $this->getEventsCache();
             $cachedJson = $cache->get($cacheKey);
@@ -137,6 +162,12 @@ class CalendarController extends PageController
 
         $fromDate = $this->getFromDate($request);
         $toDate = $this->getToDate($request);
+
+        // Never return past events — clamp start to today
+        $today = Carbon::today();
+        if ($fromDate === null || $fromDate->lt($today)) {
+            $fromDate = $today;
+        }
 
         // Get category filter
         $categoryIDs = $request->getVar('categories');
@@ -155,7 +186,8 @@ class CalendarController extends PageController
             }
         }
 
-        $events = $this->calendar->getEventsFeed(null, $categories, $fromDate, $toDate);
+        $search = $request->getVar('search') ?: null;
+        $events = $this->calendar->getEventsFeed(null, $categories, $fromDate, $toDate, $search);
 
         // Check if this is an AJAX request for JSON data
         if ($this->isAjaxRequest($request)) {
@@ -228,14 +260,16 @@ class CalendarController extends PageController
 
             $json = json_encode($eventsData);
 
-            // Cache the JSON response
-            $cacheKey = $this->generateEventsCacheKey($request);
-            $cache = $this->getEventsCache();
-            $cache->set($cacheKey, $json, $this->config()->get('json_cache_ttl'));
+            // Only cache view-range-only requests; filtered results are not cached
+            if (!$hasUserFilters) {
+                $cacheKey = $this->generateEventsCacheKey($request);
+                $cache = $this->getEventsCache();
+                $cache->set($cacheKey, $json, $this->config()->get('json_cache_ttl'));
+            }
 
             $response = $this->getResponse();
             $response->addHeader('Content-Type', 'application/json');
-            $response->addHeader('X-Calendar-Cache', 'MISS');
+            $response->addHeader('X-Calendar-Cache', $hasUserFilters ? 'BYPASS' : 'MISS');
             return $response->setBody($json);
         }
 
@@ -264,8 +298,23 @@ class CalendarController extends PageController
      */
     protected function renderCalendar(HTTPRequest $request): array
     {
-        $fromDate = $this->getFromDate($request);
-        $toDate = $this->getToDate($request);
+        // Only read explicit user filter params here — never use 'start'/'end' (those are
+        // FullCalendar view params used by the AJAX endpoint, and 'start' also doubles as
+        // SilverStripe's pagination offset which would break Carbon::parse).
+        $fromParam = $request->getVar('from');
+        $toParam   = $request->getVar('to');
+
+        try {
+            $fromDate = $fromParam ? Carbon::parse($fromParam)->startOfDay() : Carbon::today();
+        } catch (\Exception) {
+            $fromDate = Carbon::today();
+        }
+
+        try {
+            $toDate = $toParam ? Carbon::parse($toParam)->endOfDay() : null;
+        } catch (\Exception) {
+            $toDate = null;
+        }
 
         // Get category filter
         $categoryIDs = $request->getVar('categories');
@@ -278,8 +327,8 @@ class CalendarController extends PageController
             $categories = Category::get()->byIDs($categoryIDs);
         }
 
-        // Use the Calendar page's getEventsFeed method with category filtering
-        $events = $this->calendar->getEventsFeed(null, $categories, $fromDate, $toDate);
+        $search = $request->getVar('search') ?: null;
+        $events = $this->calendar->getEventsFeed(null, $categories, $fromDate, $toDate, $search);
 
         // Create paginated list
         $paginatedEvents = PaginatedList::create($events, $request);
@@ -305,14 +354,17 @@ class CalendarController extends PageController
      */
     protected function getFromDate(HTTPRequest $request): ?Carbon
     {
-        // Support both 'from' (legacy) and 'start' (FullCalendar) parameter names
+        // 'from' = user filter, 'start' = FullCalendar view range
         $from = $request->getVar('from') ?? $request->getVar('start');
 
-        if ($from && Carbon::hasFormat($from, 'Y-m-d')) {
-            return Carbon::createFromFormat('Y-m-d', $from);
+        if ($from) {
+            try {
+                return Carbon::parse($from)->startOfDay();
+            } catch (\Exception $e) {
+                // Invalid date string — ignore
+            }
         }
 
-        // Return null when no date filter is applied - this will show all events
         return null;
     }
 
@@ -324,14 +376,17 @@ class CalendarController extends PageController
      */
     protected function getToDate(HTTPRequest $request): ?Carbon
     {
-        // Support both 'to' (legacy) and 'end' (FullCalendar) parameter names
+        // 'to' = user filter, 'end' = FullCalendar view range
         $to = $request->getVar('to') ?? $request->getVar('end');
 
-        if ($to && Carbon::hasFormat($to, 'Y-m-d')) {
-            return Carbon::createFromFormat('Y-m-d', $to);
+        if ($to) {
+            try {
+                return Carbon::parse($to)->endOfDay();
+            } catch (\Exception $e) {
+                // Invalid date string — ignore
+            }
         }
 
-        // Return null when no date filter is applied
         return null;
     }
 
@@ -658,13 +713,15 @@ class CalendarController extends PageController
         $endParam = $request->getVar('end') ?? $request->getVar('to');
         $end = $endParam ? md5((string) $endParam) : 'no-end';
         $cats = $request->getVar('categories') ? md5(serialize($request->getVar('categories'))) : 'no-cats';
+        $search = $request->getVar('search') ? md5((string) $request->getVar('search')) : 'no-search';
 
         $parts = [
             'calendar_json',
             $this->calendar->ID,
             $start,
             $end,
-            $cats
+            $cats,
+            $search,
         ];
 
         return implode('_', $parts);
@@ -678,7 +735,7 @@ class CalendarController extends PageController
     private function getEventsCache(): CacheInterface
     {
         return Injector::inst()->get(CacheFactory::class)->create(
-            'CalendarJSON',
+            'CalendarJSON_v2',
             ['defaultLifetime' => $this->config()->get('json_cache_ttl')]
         );
     }

@@ -163,6 +163,30 @@ Dynamic\Calendar\Page\EventPage:
   default_duration: 1
 ```
 
+### Calendar Views Configuration
+
+Control which FullCalendar view buttons appear in the toolbar via YAML. By default all three views are available.
+
+```yaml
+# app/_config/calendar.yml
+Dynamic\Calendar\Controller\CalendarController:
+  available_views:
+    - dayGridMonth
+    - timeGridWeek
+```
+
+Available view identifiers:
+
+| Value | Description |
+|---|---|
+| `dayGridMonth` | Month grid (default) |
+| `timeGridWeek` | Week time grid |
+| `listWeek` | Rolling 7-day list ("Terminübersicht") |
+
+**Note**: The PHP default for `available_views` is intentionally an empty array so that your YAML values replace the defaults rather than merge with them. Always run `?flush=1` after changing this setting.
+
+---
+
 ### Timezone Configuration
 
 **IMPORTANT**: If your events are stored in a timezone other than UTC, you must configure the timezone to ensure ICS calendar feeds display correct times.
