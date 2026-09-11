@@ -185,7 +185,7 @@ de:
     # Summary-Spalten
     OriginalEvent.Title: 'Veranstaltung'
     InstanceDate: 'Termindatum'
-    Action: 'Aktion'
+    ActionNice: 'Aktion'
     ModifiedTitle: 'Geänderter Titel'
     # Tabs
     TAB_MODIFICATIONS: 'Änderungen'
@@ -198,10 +198,13 @@ de:
     INSTANCE_EMPTY: '-- Termin auswählen --'
     INSTANCE_DATE_FIELD: 'Termindatum'
     INSTANCE_DATE_DESC: 'Datum des Veranstaltungstermins, für den diese Ausnahme gilt'
+    INSTANCE_SAVED_OPTION: '{date} (gespeichert)'
     EXCEPTION_TYPE: 'Ausnahmetyp'
     MODIFY_INSTANCE: 'Diesen Termin ändern'
     DELETE_INSTANCE: 'Diesen Termin löschen'
     EXCEPTION_TYPE_DESC: 'Wähle, ob dieser Termin geändert oder gelöscht werden soll'
+    ACTION_MODIFIED: 'Geändert'
+    ACTION_DELETED: 'Gelöscht'
     REASON_FIELD: 'Begründung'
     REASON_DESC: 'Optionale Begründung für diese Ausnahme'
     MODIFIED_TITLE: 'Geänderter Titel'
@@ -218,6 +221,8 @@ de:
     MODIFIED_END_TIME_DESC: 'Leer lassen, um die ursprüngliche Endzeit zu verwenden. 00:00:00 für Mitternacht.'
     ALL_DAY_EVENT: 'Ganztägige Veranstaltung'
     ALL_DAY_EVENT_DESC: 'Ganztägig-Einstellung für diesen Termin überschreiben'
+    # Beschreibungen
+    DELETED_OCCURRENCE: 'Gelöschter Termin am {date}'
     # Validierungsmeldungen
     DUPLICATE_EXCEPTION: 'Für diese Veranstaltung an diesem Datum existiert bereits eine Ausnahme'
     NO_EVENT: 'Eine Veranstaltungsausnahme muss einer Veranstaltung zugeordnet sein'

@@ -6,7 +6,9 @@ use InvalidArgumentException;
 use Override;
 use SilverStripe\Core\Validation\ValidationException;
 use DateTime;
+use IntlDateFormatter;
 use SilverStripe\Core\Validation\ValidationResult;
+use SilverStripe\i18n\i18n;
 use Dynamic\Calendar\Extension\CalendarCacheInvalidation;
 use Dynamic\Calendar\Page\EventPage;
 use SilverStripe\Control\Director;
@@ -112,16 +114,6 @@ class EventException extends DataObject implements PermissionProvider
     /**
      * @var array
      */
-    private static array $summary_fields = [
-        'OriginalEvent.Title' => 'Event',
-        'InstanceDate' => 'Instance Date',
-        'Action' => 'Action',
-        'ModifiedTitle' => 'Modified Title',
-    ];
-
-    /**
-     * @var array
-     */
     private static array $searchable_fields = [
         'OriginalEvent.Title',
         'InstanceDate',
@@ -133,6 +125,23 @@ class EventException extends DataObject implements PermissionProvider
      * @var string
      */
     private static string $default_sort = 'InstanceDate ASC';
+
+    /**
+     * Translated column headings for the GridField summary (static properties can't call _t(),
+     * so the translated labels are applied here instead of directly in $summary_fields)
+     *
+     * @return array
+     */
+    #[Override]
+    public function summaryFields(): array
+    {
+        return [
+            'OriginalEvent.Title' => _t('Dynamic\Calendar\Model\EventException.OriginalEvent.Title', 'Event'),
+            'InstanceDate' => _t('Dynamic\Calendar\Model\EventException.InstanceDate', 'Instance Date'),
+            'ActionNice' => _t('Dynamic\Calendar\Model\EventException.ActionNice', 'Action'),
+            'ModifiedTitle' => _t('Dynamic\Calendar\Model\EventException.ModifiedTitle', 'Modified Title'),
+        ];
+    }
 
     /**
      * Mapping of fields that can be overridden
@@ -245,6 +254,18 @@ class EventException extends DataObject implements PermissionProvider
     }
 
     /**
+     * Translated, human-readable label for the Action field (used in summary_fields)
+     *
+     * @return string
+     */
+    public function getActionNice(): string
+    {
+        return $this->isDeleted()
+            ? _t('Dynamic\Calendar\Model\EventException.ACTION_DELETED', 'Deleted')
+            : _t('Dynamic\Calendar\Model\EventException.ACTION_MODIFIED', 'Modified');
+    }
+
+    /**
      * Check if this exception represents a modified instance
      *
      * @return bool
@@ -262,7 +283,11 @@ class EventException extends DataObject implements PermissionProvider
     public function getDescription(): string
     {
         if ($this->isDeleted()) {
-            return "Deleted occurrence on {$this->InstanceDate}";
+            return _t(
+                'Dynamic\Calendar\Model\EventException.DELETED_OCCURRENCE',
+                'Deleted occurrence on {date}',
+                ['date' => $this->InstanceDate]
+            );
         }
 
         if ($this->isModified()) {
@@ -503,18 +528,28 @@ class EventException extends DataObject implements PermissionProvider
             $endDate = new DateTime('+24 months');
             $instances = $originalEvent->getOccurrences($startDate, $endDate);
 
+            $dateFormatter = new IntlDateFormatter(
+                i18n::get_locale(),
+                IntlDateFormatter::FULL,
+                IntlDateFormatter::NONE
+            );
+
             foreach ($instances as $instance) {
                 $instanceDate = $instance->getInstanceDate();
                 $formattedDate = $instanceDate->format('Y-m-d');
-                $displayDate = $instanceDate->format('l, F j, Y'); // e.g., "Wednesday, June 25, 2025"
+                $displayDate = $dateFormatter->format($instanceDate);
                 $instanceOptions[$formattedDate] = $displayDate;
             }
 
             // If this is an existing exception and its InstanceDate is not in the options, add it
             if ($this->exists() && $this->InstanceDate && !isset($instanceOptions[$this->InstanceDate])) {
                 $savedDate = new DateTime($this->InstanceDate);
-                $displayDate = $savedDate->format('l, F j, Y');
-                $instanceOptions[$this->InstanceDate] = $displayDate . ' (saved)';
+                $displayDate = $dateFormatter->format($savedDate);
+                $instanceOptions[$this->InstanceDate] = _t(
+                    'Dynamic\Calendar\Model\EventException.INSTANCE_SAVED_OPTION',
+                    '{date} (saved)',
+                    ['date' => $displayDate]
+                );
             }
         }
 
