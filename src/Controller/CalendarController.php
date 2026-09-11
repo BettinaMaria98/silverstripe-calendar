@@ -14,6 +14,7 @@ use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Form\CalendarFilterForm;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Injector\Injector;
@@ -115,6 +116,22 @@ class CalendarController extends PageController
     public function index(HTTPRequest $request): array
     {
         return $this->renderCalendar($request);
+    }
+
+    /**
+     * AJAX events endpoint link.
+     *
+     * Built via Controller::join_links() rather than raw "$Link/events" concatenation,
+     * because $Link can already carry a "?stage=Stage" query string while in the CMS
+     * preview / draft reading mode (see VersionedStateExtension::updateLink()) — naive
+     * concatenation would put the query string ahead of the /events path segment and
+     * break routing entirely.
+     *
+     * @return string
+     */
+    public function EventsLink(): string
+    {
+        return Controller::join_links($this->Link(), 'events');
     }
 
     /**
