@@ -379,7 +379,7 @@ class EventPage extends Page
                     _t('Dynamic\Calendar\Page\EventPage.PARENT_CALENDAR', 'Calendar'),
                     $calendars->map('ID', 'Title')
                 )->setEmptyString(_t('Dynamic\Calendar\Page\EventPage.SELECT_CALENDAR', 'Select a Calendar...'))
-                 ->setDescription(_t('Dynamic\Calendar\Page\EventPage.CALENDAR_DESCRIPTION', 'Choose which Calendar this event belongs to'));
+                    ->setDescription(_t('Dynamic\Calendar\Page\EventPage.CALENDAR_DESCRIPTION', 'Choose which Calendar this event belongs to'));
 
                 // If only one calendar exists use this
                 if($calendars->count() === 1 && !$this->ParentID) {
@@ -715,13 +715,15 @@ class EventPage extends Page
     }
 
     /**
-     * Get all child events/instances for this recurring event
+     * Get all virtual instances for this recurring event
      *
-     * For the Carbon system, this returns an ArrayList of virtual instances
+     * Must not be named allChildren(): that would override Hierarchy::AllChildren()
+     * (PHP method names are case-insensitive), and SiteTree::onBeforeDelete() would
+     * then call delete() on the virtual EventInstance objects.
      *
      * @return ArrayList
      */
-    public function allChildren()
+    public function getRecurringInstances()
     {
         // Use virtual instances with Carbon system
         if (!$this->eventRecurs()) {
