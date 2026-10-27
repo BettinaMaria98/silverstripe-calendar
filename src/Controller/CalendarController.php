@@ -14,6 +14,7 @@ use Dynamic\Calendar\Model\EventInstance;
 use Dynamic\Calendar\Page\Calendar;
 use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Form\CalendarFilterForm;
+use SilverStripe\Control\Controller;
 use SilverStripe\Control\Director;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Core\Injector\Injector;
@@ -118,6 +119,22 @@ class CalendarController extends PageController
     }
 
     /**
+     * AJAX events endpoint link.
+     *
+     * Built via Controller::join_links() rather than raw "$Link/events" concatenation,
+     * because $Link can already carry a "?stage=Stage" query string while in the CMS
+     * preview / draft reading mode (see VersionedStateExtension::updateLink()) — naive
+     * concatenation would put the query string ahead of the /events path segment and
+     * break routing entirely.
+     *
+     * @return string
+     */
+    public function EventsLink(): string
+    {
+        return Controller::join_links($this->Link(), 'events');
+    }
+
+    /**
      * Check if the request is an AJAX request
      *
      * @param HTTPRequest $request
@@ -197,7 +214,7 @@ class CalendarController extends PageController
                 $eventData = [
                     'id' => $event->ID,
                     'title' => $event->Title,
-                    'start' => $event->StartDate,
+                    'start' => (string) $event->StartDate,
                     'allDay' => true, // Default to all day
                     'url' => Director::absoluteURL($event->Link()),
                     'extendedProps' => [
@@ -216,7 +233,10 @@ class CalendarController extends PageController
                 if ($event->EndDate && $event->EndTime) {
                     $eventData['end'] = $event->EndDate . 'T' . $event->EndTime;
                 } elseif ($event->EndDate) {
-                    $eventData['end'] = $event->EndDate;
+                    // FullCalendar end date for all-day events is exclusive — add 1 day
+                    $eventData['end'] = $eventData['allDay']
+                        ? Carbon::parse($event->EndDate)->addDay()->format('Y-m-d')
+                        : (string) $event->EndDate;
                 }
 
                 // Add category information with colors
@@ -631,7 +651,7 @@ class CalendarController extends PageController
                 $ics[] = 'LOCATION:' . $this->escapeICSValue($event->Location);
             }
 
-                        // Handle dates and times
+            // Handle dates and times
             if ($event->AllDay) {
                 // All-day event
                 $ics[] = 'DTSTART;VALUE=DATE:' . str_replace('-', '', $event->StartDate);

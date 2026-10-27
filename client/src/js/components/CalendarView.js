@@ -122,11 +122,13 @@ export class CalendarView {
       return;
     }
 
-    const params = new URLSearchParams({
-      start: info.startStr,
-      end: info.endStr,
-      format: 'json'
-    });
+    // Parse rather than string-concatenate: in the CMS preview/draft reading mode,
+    // eventsUrl may already carry its own query string (e.g. "?stage=Stage", added
+    // server-side by VersionedStateExtension so links keep resolving Draft content).
+    const url = new URL(eventsUrl, window.location.origin);
+    url.searchParams.set('start', info.startStr);
+    url.searchParams.set('end', info.endStr);
+    url.searchParams.set('format', 'json');
 
     // Forward filter form values — iterate FormData directly to handle multi-select correctly
     const filterForm = document.querySelector('.calendar-filter-form');
@@ -134,13 +136,13 @@ export class CalendarView {
       const skip = new Set(['action_doFilter', 'SecurityID', 'advanced']);
       for (const [key, value] of new FormData(filterForm).entries()) {
         if (value && !skip.has(key)) {
-          params.append(key, value);
+          url.searchParams.append(key, value);
         }
       }
     }
 
     try {
-      const response = await fetch(`${eventsUrl}?${params.toString()}`, {
+      const response = await fetch(url.toString(), {
         headers: {
           'Accept': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
