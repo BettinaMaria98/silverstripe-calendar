@@ -2,7 +2,6 @@
 
 namespace Dynamic\Calendar\Page;
 
-use Dynamic\Calendar\Page\EventPage;
 use Page;
 use Override;
 use SilverStripe\Model\List\ArrayList;
@@ -11,7 +10,6 @@ use Carbon\Carbon;
 use Dynamic\Calendar\Controller\CalendarController;
 use Dynamic\Calendar\Extension\CalendarCacheInvalidation;
 use Dynamic\Calendar\Model\Category;
-use Dynamic\Calendar\Page\EventPage;
 use Dynamic\Calendar\Traits\EventPageOptimizations;
 use SilverStripe\Forms\CheckboxField;
 use SilverStripe\Forms\CheckboxSetField;
