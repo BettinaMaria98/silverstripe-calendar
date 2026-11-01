@@ -125,6 +125,7 @@ de:
     RECURSION_MONTHLY_N: 'Alle {interval} Monate'
     RECURSION_YEARLY: 'Jährlich'
     RECURSION_YEARLY_N: 'Alle {interval} Jahre'
+    RECURSION_CUSTOM: 'Nur einzelne Termine'
     RECURSION_UNKNOWN: 'Unbekanntes Muster'
     RECURSION_UNTIL: 'bis {date}'
     # Template

@@ -2,6 +2,7 @@
 
 namespace Dynamic\Calendar\Page;
 
+use Dynamic\Calendar\Page\EventPage;
 use Page;
 use Override;
 use SilverStripe\Model\List\ArrayList;
@@ -306,7 +307,8 @@ class Calendar extends Page
         if ($applyDateFilter) {
             $whereClause = [];
             if ($fromDate) {
-                $whereClause['StartDate >= ?'] = $fromDate->format('Y-m-d');
+                // Overlap check so multi-day events that started earlier are still included
+                $whereClause['COALESCE("EndDate", "StartDate") >= ?'] = $fromDate->format('Y-m-d');
             }
             if ($toDate) {
                 $whereClause['StartDate <= ?'] = $toDate->format('Y-m-d');
@@ -345,8 +347,18 @@ class Calendar extends Page
             $occurrenceFromDate = $fromDate ?: Carbon::now()->startOfYear();
             $occurrenceToDate = $toDate ?: Carbon::now()->copy()->addYears($windowYears)->endOfYear();
 
+            // Start generating earlier by the event's duration, so multi-day occurrences
+            // that begin before the range but still overlap it are included
+            if ($event->StartDate && $event->EndDate) {
+                $durationDays = (int) Carbon::parse($event->StartDate)->diffInDays(Carbon::parse($event->EndDate));
+                $occurrenceFromDate = $occurrenceFromDate->copy()->subDays(max(0, $durationDays));
+            }
+
             // Get occurrences within the date range using Carbon recursion with caching
-            $occurrences = $event->getCachedOccurrences($occurrenceFromDate, $occurrenceToDate);
+            $occurrences = iterator_to_array(
+                $event->getCachedOccurrences($occurrenceFromDate, $occurrenceToDate),
+                false
+            );
 
             // Get event exceptions for this event
             $exceptions = $event->EventExceptions();
@@ -357,6 +369,36 @@ class Calendar extends Page
             }
 
             $tz = CalendarController::config()->get('timezone') ?: date_default_timezone_get();
+
+            // Instances moved into the range by an exception, whose original date lies outside of it
+            $generatedDates = array_map(
+                fn($occurrence) => $occurrence->getInstanceDate()->copy()->setTimezone($tz)->format('Y-m-d'),
+                $occurrences
+            );
+            foreach ($exceptionsByDate as $instanceDate => $exception) {
+                if (!$exception->isModified() || in_array($instanceDate, $generatedDates)) {
+                    continue;
+                }
+
+                $movedStart = $exception->ModifiedStartDate;
+                $movedEnd = $exception->ModifiedEndDate ?: $movedStart;
+                if (!$movedStart && !$movedEnd) {
+                    continue;
+                }
+
+                $movedStart = $movedStart ?: $movedEnd;
+                if (($occurrenceFromDate && $movedEnd < $occurrenceFromDate->format('Y-m-d'))
+                    || ($occurrenceToDate && $movedStart > $occurrenceToDate->format('Y-m-d'))
+                ) {
+                    continue;
+                }
+
+                // Only real occurrences of the series
+                foreach ($event->getOccurrences($instanceDate, $instanceDate, 1) as $movedOccurrence) {
+                    $occurrences[] = $movedOccurrence;
+                }
+            }
+
             foreach ($occurrences as $occurrence) {
                 $instanceDate = $occurrence->getInstanceDate()->copy()->setTimezone($tz)->format('Y-m-d');
 
@@ -424,9 +466,11 @@ class Calendar extends Page
             if ($applyDateFilter) {
                 try {
                     $eventDate = Carbon::parse($event->StartDate);
+                    $endDateValue = (string) $event->EndDate;
+                    $eventEndDate = $endDateValue ? Carbon::parse($endDateValue) : $eventDate->copy();
 
-                    // Skip events before the requested start date (compare dates only, not times)
-                    if ($fromDate && $eventDate->startOfDay()->lt($fromDate->copy()->startOfDay())) {
+                    // Skip events that ended before the requested start date (compare dates only, not times)
+                    if ($fromDate && $eventEndDate->startOfDay()->lt($fromDate->copy()->startOfDay())) {
                         continue;
                     }
 

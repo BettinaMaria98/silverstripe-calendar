@@ -5,6 +5,7 @@ namespace Dynamic\Calendar\Controller;
 use PageController;
 use Carbon\Carbon;
 use Dynamic\Calendar\Model\EventException;
+use Dynamic\Calendar\Model\EventInstance;
 use Exception;
 use SilverStripe\Control\HTTPRequest;
 use SilverStripe\Control\HTTPResponse;
@@ -29,6 +30,7 @@ class EventPageController extends PageController
 
     private ?string $instanceDate = null;
     private ?EventException $currentException = null;
+    private ?EventInstance $currentInstance = null;
     private bool $instanceLoaded = false;
 
     private function loadInstance(): void
@@ -43,14 +45,13 @@ class EventPageController extends PageController
         }
 
         // Validate that this date corresponds to a real, non-deleted occurrence
-        $isValid = false;
         foreach ($this->dataRecord->getOccurrences($instanceDate, $instanceDate) as $instance) {
             if (!$instance->isDeleted()) {
-                $isValid = true;
+                $this->currentInstance = $instance;
             }
             break;
         }
-        if (!$isValid) {
+        if (!$this->currentInstance) {
             return;
         }
 
@@ -76,11 +77,8 @@ class EventPageController extends PageController
     public function StartDate(): mixed
     {
         $this->loadInstance();
-        if ($this->instanceDate) {
-            $date = $this->currentException?->hasOverride('StartDate')
-                ? $this->currentException->getOverride('StartDate')
-                : $this->instanceDate;
-            return DBField::create_field('Date', $date);
+        if ($this->currentInstance) {
+            return DBField::create_field('Date', (string) $this->currentInstance->StartDate);
         }
         return $this->dataRecord->dbObject('StartDate');
     }
@@ -88,16 +86,8 @@ class EventPageController extends PageController
     public function EndDate(): mixed
     {
         $this->loadInstance();
-        if ($this->currentException?->hasOverride('EndDate')) {
-            return DBField::create_field('Date', $this->currentException->getOverride('EndDate'));
-        }
-        if ($this->instanceDate) {
-            $originalStart = Carbon::parse($this->dataRecord->StartDate);
-            $originalEnd = $this->dataRecord->EndDate
-                ? Carbon::parse($this->dataRecord->EndDate)
-                : $originalStart;
-            $durationDays = (int) $originalStart->diffInDays($originalEnd);
-            return DBField::create_field('Date', Carbon::parse($this->instanceDate)->addDays($durationDays)->format('Y-m-d'));
+        if ($this->currentInstance) {
+            return DBField::create_field('Date', (string) $this->currentInstance->EndDate);
         }
         return $this->dataRecord->dbObject('EndDate');
     }
@@ -185,8 +175,8 @@ class EventPageController extends PageController
     public function FormattedStartTime(): string
     {
         $this->loadInstance();
-        $raw = $this->currentException?->hasOverride('StartTime')
-            ? $this->currentException->getOverride('StartTime')
+        $raw = $this->currentInstance
+            ? (string) $this->currentInstance->StartTime
             : $this->dataRecord->StartTime;
         return $this->formatTime($raw);
     }
@@ -194,8 +184,8 @@ class EventPageController extends PageController
     public function FormattedEndTime(): string
     {
         $this->loadInstance();
-        $raw = $this->currentException?->hasOverride('EndTime')
-            ? $this->currentException->getOverride('EndTime')
+        $raw = $this->currentInstance
+            ? (string) $this->currentInstance->EndTime
             : $this->dataRecord->EndTime;
         return $this->formatTime($raw);
     }

@@ -84,15 +84,15 @@ class EventInstanceCache
     {
         // Clear memory cache entries for this event
         foreach (array_keys(self::$memory_cache) as $key) {
-            if (str_starts_with((string) $key, "event_{$event->ID}_")) {
+            if (str_starts_with((string) $key, "event_instances_{$event->ID}_")) {
                 unset(self::$memory_cache[$key]);
             }
         }
 
-        // For persistent cache, we'd need to iterate or use pattern matching
-        // SilverStripe's cache doesn't support pattern deletion, so we'll
-        // use cache tags when the event is modified
-        self::getCache()->delete("event_instances_{$event->ID}");
+        // The persistent cache can't delete by key prefix and the keys only change with the
+        // event's LastEdited - so changes to exceptions/additional dates would stay stale.
+        // Clear the whole instance cache instead.
+        self::getCache()->clear();
     }
 
     /**

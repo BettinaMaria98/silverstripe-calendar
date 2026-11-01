@@ -118,7 +118,7 @@ class EventPage extends Page
         'StartTime' => 'Time',
         'EndTime' => 'Time',
         'AllDay' => 'Boolean',
-        'Recursion' => 'Enum(array("NONE","DAILY","WEEKLY","MONTHLY","YEARLY"), "NONE")',
+        'Recursion' => 'Enum(array("NONE","DAILY","WEEKLY","MONTHLY","YEARLY","CUSTOM"), "NONE")',
         'Interval' => 'Int',
         'RecursionEndDate' => 'Date',
         'EventType' => 'Varchar(255)',
@@ -466,6 +466,10 @@ class EventPage extends Page
                         )->setTitle(_t('Dynamic\Calendar\Page\EventPage.REPEAT_EVERY_LABEL', 'Repeat every')),
                     ]
                 );
+
+                // Individual dates have no interval or end date
+                $interval->hideIf('Recursion')->isEqualTo('CUSTOM')->end();
+                $recursionEndDate->hideIf('Recursion')->isEqualTo('CUSTOM')->end();
             }
         });
 
@@ -676,6 +680,7 @@ class EventPage extends Page
             'WEEKLY'  => _t('Dynamic\Calendar\Page\EventPage.PATTERN_WEEKS', 'Week(s)'),
             'MONTHLY' => _t('Dynamic\Calendar\Page\EventPage.PATTERN_MONTHS', 'Month(s)'),
             'YEARLY'  => _t('Dynamic\Calendar\Page\EventPage.PATTERN_YEARS', 'Year(s)'),
+            'CUSTOM'  => _t('Dynamic\Calendar\Page\EventPage.RECURSION_CUSTOM', 'Individual dates'),
         ];
     }
 

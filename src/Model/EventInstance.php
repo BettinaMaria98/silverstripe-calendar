@@ -33,9 +33,14 @@ class EventInstance extends ModelData
      * @param EventPage $originalEvent
      * @param Carbon $instanceDate
      * @param EventException|null $exception
+     * @param array $overrides Property overrides for this instance (e.g. from additional dates), applied after exceptions
      */
-    public function __construct(protected EventPage $originalEvent, protected Carbon $instanceDate, protected ?EventException $exception = null)
-    {
+    public function __construct(
+        protected EventPage $originalEvent,
+        protected Carbon $instanceDate,
+        protected ?EventException $exception = null,
+        protected array $overrides = []
+    ) {
         $this->calculateVirtualProperties();
     }
 
@@ -88,6 +93,18 @@ class EventInstance extends ModelData
             return $value;
         }
 
+        // Check for instance overrides
+        if (isset($this->overrides[$property]) && $this->overrides[$property] !== '') {
+            $value = $this->overrides[$property];
+            if (in_array($property, ['StartDate', 'EndDate'])) {
+                return DBField::create_field('Date', $value);
+            }
+            if (in_array($property, ['StartTime', 'EndTime'])) {
+                return DBField::create_field('Time', $value);
+            }
+            return $value;
+        }
+
         // Check for virtual properties
         if (isset($this->virtualProperties[$property])) {
             $value = $this->virtualProperties[$property];
@@ -122,6 +139,7 @@ class EventInstance extends ModelData
     {
         return isset($this->virtualProperties[$fieldName]) ||
             ($this->exception && $this->exception->hasOverride($fieldName)) ||
+            isset($this->overrides[$fieldName]) ||
             $this->originalEvent->hasField($fieldName);
     }
 
@@ -315,6 +333,7 @@ class EventInstance extends ModelData
             'IsDeleted' => $this->isDeleted(),
             'OriginalEventID' => $this->originalEvent->ID,
             'OriginalInstanceDate' => $this->instanceDate->copy()->setTimezone($tz)->format('Y-m-d'),
+            'Overrides' => $this->overrides,
         ];
     }
 
@@ -349,6 +368,6 @@ class EventInstance extends ModelData
             ])->first();
         }
 
-        return new self($originalEvent, $instanceDate, $exception);
+        return new self($originalEvent, $instanceDate, $exception, $data['Overrides'] ?? []);
     }
 }

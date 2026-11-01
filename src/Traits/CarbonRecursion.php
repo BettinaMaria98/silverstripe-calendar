@@ -83,6 +83,8 @@ trait CarbonRecursion
      */
     public function getOccurrences($startDate = null, $endDate = null, ?int $limit = null): Generator
     {
+        $instances = [];
+
         if (!$this->eventRecurs()) {
             // For non-recurring events, just return the original if it falls within range
             $eventStart = Carbon::parse($this->StartDate);
@@ -90,28 +92,45 @@ trait CarbonRecursion
             $rangeEnd = $endDate ? Carbon::parse($endDate) : Carbon::now()->addYear();
 
             if ($eventStart->between($rangeStart, $rangeEnd)) {
-                yield $this->createVirtualInstance($eventStart);
+                $instances[] = $this->createVirtualInstance($eventStart);
             }
-            return;
+        } else {
+            $rangeStart = $startDate ? Carbon::parse($startDate) : Carbon::parse($this->StartDate);
+            $rangeEnd = $endDate ? Carbon::parse($endDate) : $rangeStart->copy()->addYears(2);
+
+            $period = $this->createCarbonPeriod($startDate, $endDate);
+
+            foreach ($period ?? [] as $date) {
+                // Check for exceptions (deleted instances)
+                $exception = $this->getExceptionForDate($date);
+                if ($exception && $exception->isDeleted()) {
+                    continue;
+                }
+
+                $instances[] = $this->createVirtualInstance($date, $exception);
+
+                // Later dates can't be within the limit, even after the extension hook added some
+                if ($limit && count($instances) >= $limit) {
+                    break;
+                }
+            }
         }
+
+        // Allow extensions to add further occurrences (e.g. individual additional dates)
+        $this->extend('updateOccurrences', $instances, $rangeStart, $rangeEnd);
+
+        // De-duplicate by instance date and sort chronologically
+        $byDate = [];
+        foreach ($instances as $instance) {
+            $key = $instance->getInstanceDate()->format('Y-m-d');
+            if (!isset($byDate[$key])) {
+                $byDate[$key] = $instance;
+            }
+        }
+        ksort($byDate);
 
         $count = 0;
-        $period = $this->createCarbonPeriod($startDate, $endDate);
-
-        if (!$period) {
-            return;
-        }
-
-        foreach ($period as $date) {
-            // Check for exceptions (deleted instances)
-            $exception = $this->getExceptionForDate($date);
-            if ($exception && $exception->isDeleted()) {
-                continue;
-            }
-
-            // Create virtual instance
-            $instance = $this->createVirtualInstance($date, $exception);
-
+        foreach ($byDate as $instance) {
             yield $instance;
 
             // Apply limit if specified
@@ -158,6 +177,8 @@ trait CarbonRecursion
                 'WEEKLY' => $this->createWeeklyPeriod($eventStart, $rangeEnd),
                 'MONTHLY' => $this->createMonthlyPeriod($eventStart, $rangeEnd),
                 'YEARLY' => $this->createYearlyPeriod($eventStart, $rangeEnd),
+                // Only the event's own date - further dates come from the updateOccurrences hook
+                'CUSTOM' => CarbonPeriod::create($eventStart, '1 day', $eventStart),
                 default => null
             };
 
@@ -316,7 +337,7 @@ trait CarbonRecursion
         }
 
         $endDate = $until ? Carbon::parse($until) :
-                  ($this->RecursionEndDate ? Carbon::parse($this->RecursionEndDate) : Carbon::now()->addYears(2));
+            ($this->RecursionEndDate ? Carbon::parse($this->RecursionEndDate) : Carbon::now()->addYears(2));
 
         $count = 0;
         foreach ($this->getOccurrences(null, $endDate) as $occurrence) {
@@ -442,6 +463,10 @@ trait CarbonRecursion
     {
         if (!$this->eventRecurs()) {
             return _t('Dynamic\Calendar\Page\EventPage.RECURSION_NONE', 'Does not repeat');
+        }
+
+        if ($this->Recursion === 'CUSTOM') {
+            return _t('Dynamic\Calendar\Page\EventPage.RECURSION_CUSTOM', 'Individual dates');
         }
 
         $interval = max(1, (int) $this->Interval);

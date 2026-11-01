@@ -224,13 +224,14 @@ class CalendarController extends PageController
                     ]
                 ];
 
-                // Add time information if available
-                if ($event->StartTime) {
+                // Add time information if available - all-day events ignore stored times
+                $isAllDay = (bool) $event->AllDay;
+                if ($event->StartTime && !$isAllDay) {
                     $eventData['start'] = $event->StartDate . 'T' . $event->StartTime;
                     $eventData['allDay'] = false;
                 }
 
-                if ($event->EndDate && $event->EndTime) {
+                if ($event->EndDate && $event->EndTime && !$isAllDay) {
                     $eventData['end'] = $event->EndDate . 'T' . $event->EndTime;
                 } elseif ($event->EndDate) {
                     // FullCalendar end date for all-day events is exclusive — add 1 day
